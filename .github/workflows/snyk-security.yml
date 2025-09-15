@@ -165,12 +165,12 @@ jobs:
           REGION=${{ secrets.GCP_REGION }}
           REGISTRY_URL="$REGION-docker.pkg.dev/$PROJECT_ID/bookshelf-mvp"
 
-          # Build and push backend
-          docker build -t $REGISTRY_URL/bookshelf-backend:latest ./backend
+          # Build and push backend (with platform specification for ARM64 to AMD64 compatibility)
+          docker build --platform linux/amd64 -t $REGISTRY_URL/bookshelf-backend:latest ./backend
           docker push $REGISTRY_URL/bookshelf-backend:latest
 
-          # Build and push frontend
-          docker build -t $REGISTRY_URL/bookshelf-frontend:latest ./frontend
+          # Build and push frontend (with platform specification for ARM64 to AMD64 compatibility)
+          docker build --platform linux/amd64 -t $REGISTRY_URL/bookshelf-frontend:latest ./frontend
           docker push $REGISTRY_URL/bookshelf-frontend:latest
 
       # ================================
