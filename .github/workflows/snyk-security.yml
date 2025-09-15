@@ -24,12 +24,12 @@ jobs:
       # 3. Install frontend dependencies
       - name: Install frontend dependencies
         run: npm ci
-        working-directory: ./bookshelf-mvp/frontend
+        working-directory: ./frontend
 
       # 4. Install backend dependencies
       - name: Install backend dependencies
         run: npm ci
-        working-directory: ./bookshelf-mvp/backend
+        working-directory: ./backend
 
       # 5. Install Snyk CLI
       - name: Install Snyk CLI
