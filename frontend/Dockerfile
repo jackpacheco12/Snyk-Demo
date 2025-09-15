@@ -1,5 +1,8 @@
 # Multi-stage build for production
-FROM node:16-slim AS build
+FROM gcr.io/google.com/cloudsdktool/cloud-sdk:alpine AS build
+
+# Install Node.js
+RUN apk add --no-cache nodejs npm
 
 WORKDIR /app
 

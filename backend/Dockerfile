@@ -1,12 +1,18 @@
 # Build stage
-FROM node:16-slim as builder
+FROM gcr.io/google.com/cloudsdktool/cloud-sdk:alpine AS builder
+
+# Install Node.js
+RUN apk add --no-cache nodejs npm
 
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci --only=production && npm cache clean --force
 
 # Production stage
-FROM node:16-slim
+FROM gcr.io/google.com/cloudsdktool/cloud-sdk:alpine
+
+# Install Node.js
+RUN apk add --no-cache nodejs npm
 
 WORKDIR /app
 
