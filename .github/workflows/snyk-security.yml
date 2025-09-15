@@ -34,7 +34,7 @@ jobs:
         uses: snyk/actions/node@master
         continue-on-error: true
         env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+          SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
         with:
           args: --file=frontend/package.json --sarif-file-output=snyk-frontend.sarif
 
@@ -56,7 +56,7 @@ jobs:
         uses: snyk/actions/node@master
         continue-on-error: true
         env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+          SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
         with:
           args: --file=backend/package.json --sarif-file-output=snyk-backend.sarif
 
@@ -74,7 +74,7 @@ jobs:
         uses: snyk/actions/node@master
         continue-on-error: true
         env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+          SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
         with:
           command: code test
           args: --sarif-file-output=snyk-code.sarif
@@ -93,7 +93,7 @@ jobs:
         uses: snyk/actions/iac@master
         continue-on-error: true
         env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+          SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
         with:
           args: --sarif-file-output=snyk-iac.sarif
 
@@ -116,7 +116,7 @@ jobs:
         uses: snyk/actions/docker@master
         continue-on-error: true
         env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+          SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
         with:
           image: bookshelf-backend:scan
           args: --sarif-file-output=snyk-container-backend.sarif
@@ -132,7 +132,7 @@ jobs:
         uses: snyk/actions/docker@master
         continue-on-error: true
         env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+          SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
         with:
           image: bookshelf-frontend:scan
           args: --sarif-file-output=snyk-container-frontend.sarif

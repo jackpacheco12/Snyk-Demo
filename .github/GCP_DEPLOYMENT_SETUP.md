@@ -62,7 +62,7 @@ Add these 4 secrets:
 
 | Secret Name | Value to Paste |
 |-------------|----------------|
-| `SNYK_TOKEN` | **Your Snyk token from Step 2** |
+| `SNYK_KEY` | **Your Snyk token from Step 2** |
 | `GCP_SA_KEY` | **Entire JSON from Step 3** |
 | `GCP_PROJECT_ID` | **Your project ID from Step 1** |
 | `GCP_REGION` | `us-central1` |

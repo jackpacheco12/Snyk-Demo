@@ -16,7 +16,7 @@ This repository uses GitHub Actions for:
 ### 1. Snyk Configuration
 1. Sign up at [snyk.io](https://snyk.io)
 2. Get API token: Account Settings → API Token
-3. Add secret: `SNYK_TOKEN`
+3. Add secret: `SNYK_KEY`
 
 ### 2. GCP Configuration
 1. Create GCP service account with these roles:
