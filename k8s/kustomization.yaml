@@ -13,6 +13,4 @@ images:
 - name: bookshelf-frontend
   newTag: latest
 
-commonLabels:
-  app.kubernetes.io/name: bookshelf-mvp
-  app.kubernetes.io/version: "1.0.0"
+# commonLabels removed to avoid selector conflicts with existing deployments
