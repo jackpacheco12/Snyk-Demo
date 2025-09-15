@@ -1,22 +1,20 @@
-name: Snyk Security Scan
+name: Snyk Security Scan MVP
 
 on:
   push:
     branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
-  schedule:
-    - cron: '0 2 * * 1'
 
 jobs:
   snyk-scan:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout repository
+      # 1. Checkout the repository
       - uses: actions/checkout@v4
 
-      # 2. Setup Node.js with caching for both package-lock.json files
+      # 2. Setup Node.js with caching
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -40,26 +38,32 @@ jobs:
       - name: Install Snyk CLI
         run: npm install -g snyk
 
-      # 6. Run Snyk frontend test
+      # 6. Run Snyk frontend scan
       - name: Snyk frontend test
         continue-on-error: true
         run: |
-          snyk test --file=./bookshelf-mvp/frontend/package.json --severity-threshold=high --sarif=snyk-frontend.sarif
+          snyk test \
+            --file=bookshelf-mvp/frontend/package.json \
+            --severity-threshold=high \
+            --sarif=snyk-frontend.sarif
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
 
-      # 7. Run Snyk backend test
+      # 7. Run Snyk backend scan
       - name: Snyk backend test
         continue-on-error: true
         run: |
-          snyk test --file=./bookshelf-mvp/backend/package.json --severity-threshold=high --sarif=snyk-backend.sarif
+          snyk test \
+            --file=bookshelf-mvp/backend/package.json \
+            --severity-threshold=high \
+            --sarif=snyk-backend.sarif
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
 
       # 8. Upload frontend SARIF
       - name: Upload frontend SARIF
         uses: github/codeql-action/upload-sarif@v3
-        if: always()
+        if: always() && hashFiles('snyk-frontend.sarif') != ''
         with:
           sarif_file: snyk-frontend.sarif
           category: snyk-frontend
@@ -67,7 +71,7 @@ jobs:
       # 9. Upload backend SARIF
       - name: Upload backend SARIF
         uses: github/codeql-action/upload-sarif@v3
-        if: always()
+        if: always() && hashFiles('snyk-backend.sarif') != ''
         with:
           sarif_file: snyk-backend.sarif
           category: snyk-backend
