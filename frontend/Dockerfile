@@ -1,16 +1,29 @@
-FROM node:14
+# Multi-stage build for production
+FROM node:16-alpine AS build
 
 WORKDIR /app
 
+# Copy package files
 COPY package*.json ./
 
-RUN npm install
+# Install dependencies
+RUN npm ci --only=production
 
+# Copy source code
 COPY . .
 
-EXPOSE 3000
+# Build the app
+RUN npm run build
 
-ENV WATCHPACK_POLLING=true
-ENV CHOKIDAR_USEPOLLING=true
+# Production stage
+FROM nginx:alpine
 
-CMD ["npm", "start"]
+# Copy built app
+COPY --from=build /app/build /usr/share/nginx/html
+
+# Copy nginx config
+COPY nginx.conf /etc/nginx/nginx.conf
+
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]

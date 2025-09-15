@@ -1,0 +1,8 @@
+# Copy this file to terraform.tfvars and update with your values
+
+project_id = "your-gcp-project-id"
+gcp_region = "us-central1"
+environment = "production"
+cluster_name = "bookshelf-mvp-cluster"
+node_machine_type = "e2-medium"
+node_count = 1
