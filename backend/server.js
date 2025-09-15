@@ -173,6 +173,15 @@ app.get('/api/users/:userId/books', auth, (req, res) => {
   res.json(publicBooks);
 });
 
+// Health check endpoint for Kubernetes
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  });
+});
+
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });

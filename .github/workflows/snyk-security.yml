@@ -180,7 +180,29 @@ jobs:
           export USE_REGISTRY=true
           export PROJECT_ID=${{ secrets.GCP_PROJECT_ID }}
           export GCP_REGION=${{ secrets.GCP_REGION }}
-          ./scripts/deploy-app.sh
+
+          # Deploy with better error handling
+          echo "Deploying application to Kubernetes..."
+          kubectl apply -k k8s/
+
+          echo "Checking deployment status..."
+          kubectl get pods -n bookshelf-mvp
+          kubectl get deployments -n bookshelf-mvp
+
+          echo "Waiting for deployments (extended timeout)..."
+          kubectl wait --for=condition=available --timeout=600s deployment/bookshelf-backend -n bookshelf-mvp || {
+            echo "Backend deployment failed, checking logs..."
+            kubectl logs deployment/bookshelf-backend -n bookshelf-mvp
+            kubectl describe deployment/bookshelf-backend -n bookshelf-mvp
+            exit 1
+          }
+
+          kubectl wait --for=condition=available --timeout=600s deployment/bookshelf-frontend -n bookshelf-mvp || {
+            echo "Frontend deployment failed, checking logs..."
+            kubectl logs deployment/bookshelf-frontend -n bookshelf-mvp
+            kubectl describe deployment/bookshelf-frontend -n bookshelf-mvp
+            exit 1
+          }
 
   container-security-scan:
     runs-on: ubuntu-latest
