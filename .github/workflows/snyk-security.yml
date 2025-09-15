@@ -18,12 +18,9 @@ jobs:
       # 1. Checkout repository
       - uses: actions/checkout@v4
 
-      # 2. Install frontend dependencies
-      - name: Install frontend dependencies
-        run: npm ci
-        working-directory: ./frontend
-
-      # 3. Snyk Open Source scan frontend
+      # ================================
+      # Frontend OSS Scan
+      # ================================
       - name: Snyk frontend OSS scan
         uses: snyk/actions/node@master
         continue-on-error: true
@@ -32,13 +29,7 @@ jobs:
         with:
           args: --file=frontend/package.json --sarif-file-output=snyk-frontend-oss.sarif
 
-      # 4. Snyk Code (SAST) scan frontend
-      - name: Snyk frontend SAST scan
-        run: snyk code test ./frontend --sarif-file-output=snyk-frontend-code.sarif
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
-
-      # 5. Upload frontend SARIF files
+      # Upload frontend OSS SARIF
       - name: Upload frontend OSS SARIF
         uses: github/codeql-action/upload-sarif@v3
         if: hashFiles('snyk-frontend-oss.sarif') != ''
@@ -46,19 +37,9 @@ jobs:
           sarif_file: snyk-frontend-oss.sarif
           category: snyk-frontend-oss
 
-      - name: Upload frontend Code SARIF
-        uses: github/codeql-action/upload-sarif@v3
-        if: hashFiles('snyk-frontend-code.sarif') != ''
-        with:
-          sarif_file: snyk-frontend-code.sarif
-          category: snyk-frontend-code
-
-      # 6. Install backend dependencies
-      - name: Install backend dependencies
-        run: npm ci
-        working-directory: ./backend
-
-      # 7. Snyk Open Source scan backend
+      # ================================
+      # Backend OSS Scan
+      # ================================
       - name: Snyk backend OSS scan
         uses: snyk/actions/node@master
         continue-on-error: true
@@ -67,13 +48,7 @@ jobs:
         with:
           args: --file=backend/package.json --sarif-file-output=snyk-backend-oss.sarif
 
-      # 8. Snyk Code (SAST) scan backend
-      - name: Snyk backend SAST scan
-        run: snyk code test ./backend --sarif-file-output=snyk-backend-code.sarif
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
-
-      # 9. Upload backend SARIF files
+      # Upload backend OSS SARIF
       - name: Upload backend OSS SARIF
         uses: github/codeql-action/upload-sarif@v3
         if: hashFiles('snyk-backend-oss.sarif') != ''
@@ -81,22 +56,58 @@ jobs:
           sarif_file: snyk-backend-oss.sarif
           category: snyk-backend-oss
 
-      - name: Upload backend Code SARIF
+      # ================================
+      # Frontend SAST Scan
+      # ================================
+      - name: Snyk frontend SAST scan
+        uses: snyk/actions/node@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
+        with:
+          args: code test ./frontend --sarif-file-output=snyk-frontend-code.sarif
+
+      # Upload frontend SAST SARIF
+      - name: Upload frontend SAST SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: hashFiles('snyk-frontend-code.sarif') != ''
+        with:
+          sarif_file: snyk-frontend-code.sarif
+          category: snyk-frontend-code
+
+      # ================================
+      # Backend SAST Scan
+      # ================================
+      - name: Snyk backend SAST scan
+        uses: snyk/actions/node@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
+        with:
+          args: code test ./backend --sarif-file-output=snyk-backend-code.sarif
+
+      # Upload backend SAST SARIF
+      - name: Upload backend SAST SARIF
         uses: github/codeql-action/upload-sarif@v3
         if: hashFiles('snyk-backend-code.sarif') != ''
         with:
           sarif_file: snyk-backend-code.sarif
           category: snyk-backend-code
 
-      # 10. Optional IaC scan (Docker + Kubernetes)
+      # ================================
+      # Optional IaC Scan (Terraform / CloudFormation)
+      # ================================
       - name: Snyk IaC scan
-        run: snyk iac test ./iac --sarif-file-output=snyk-iac.sarif || true
+        uses: snyk/actions/node@master
+        continue-on-error: true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
+        with:
+          args: iac test ./iac --sarif-file-output=snyk-iac.sarif
 
+      # Upload IaC SARIF
       - name: Upload IaC SARIF
         uses: github/codeql-action/upload-sarif@v3
         if: hashFiles('snyk-iac.sarif') != ''
         with:
-          sarif_file: snyk-iac.sarif
-          category: snyk-iac
+          sarif_fi_
