@@ -1,5 +1,5 @@
 # Multi-stage build for production
-FROM node:16-alpine AS build
+FROM node:16-slim AS build
 
 WORKDIR /app
 

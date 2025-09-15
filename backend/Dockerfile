@@ -1,17 +1,20 @@
-FROM node:16-alpine
+# Build stage
+FROM node:16-slim as builder
 
-# Create app directory
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --only=production && npm cache clean --force
+
+# Production stage
+FROM node:16-slim
+
 WORKDIR /app
 
 # Create non-root user
-RUN addgroup -g 1001 -S nodejs
-RUN adduser -S nodejs -u 1001
+RUN groupadd -r nodejs && useradd -r -g nodejs nodejs
 
-# Copy package files
-COPY package*.json ./
-
-# Install dependencies
-RUN npm ci --only=production && npm cache clean --force
+# Copy dependencies from builder
+COPY --from=builder /app/node_modules ./node_modules
 
 # Copy source code
 COPY . .
