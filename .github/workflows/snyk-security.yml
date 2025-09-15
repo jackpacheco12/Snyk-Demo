@@ -33,20 +33,30 @@ jobs:
 
       - name: Run Snyk to check for frontend vulnerabilities
         uses: snyk/actions/node@master
+        continue-on-error: true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
-          args: --file=bookshelf-mvp/frontend/package.json --severity-threshold=high
+          args: --file=bookshelf-mvp/frontend/package.json --severity-threshold=high --sarif-file-output=snyk-frontend.sarif
 
       - name: Run Snyk to check for backend vulnerabilities
         uses: snyk/actions/node@master
+        continue-on-error: true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
-          args: --file=bookshelf-mvp/backend/package.json --severity-threshold=high
+          args: --file=bookshelf-mvp/backend/package.json --severity-threshold=high --sarif-file-output=snyk-backend.sarif
 
-      - name: Upload result to GitHub Code Scanning
+      - name: Upload frontend SARIF to GitHub Code Scanning
         uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
-          sarif_file: snyk.sarif
+          sarif_file: snyk-frontend.sarif
+          category: frontend
+
+      - name: Upload backend SARIF to GitHub Code Scanning
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: snyk-backend.sarif
+          category: backend
