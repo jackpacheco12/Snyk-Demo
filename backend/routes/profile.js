@@ -13,7 +13,7 @@ router.put('/', auth, [
   body('bio').optional().isLength({ max: 500 }).withMessage('Bio must be less than 500 characters'),
   body('favoriteGenre').optional().notEmpty().withMessage('Favorite genre cannot be empty'),
   body('booksRead').optional().isInt({ min: 0 }).withMessage('Books read must be a positive number')
-], (req, res) => {
+], async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -28,7 +28,7 @@ router.put('/', auth, [
     if (favoriteGenre !== undefined) updateData.favoriteGenre = favoriteGenre;
     if (booksRead !== undefined) updateData.booksRead = parseInt(booksRead);
 
-    const updatedUser = User.updateById(req.user.id, updateData);
+    const updatedUser = await User.updateById(req.user.id, updateData);
 
     if (!updatedUser) {
       return res.status(404).json({ error: 'User not found' });

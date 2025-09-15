@@ -25,6 +25,17 @@ spec:
           value: "production"
         - name: PORT
           value: "5000"
+        - name: DB_HOST
+          value: "172.22.0.3"
+        - name: DB_NAME
+          value: "bookshelf"
+        - name: DB_USER
+          value: "bookshelf"
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: db-secret
+              key: password
         resources:
           requests:
             memory: "128Mi"

@@ -1,133 +1,203 @@
 const _ = require('lodash');
-
-let follows = [];
-let activities = [];
-let nextFollowId = 1;
-let nextActivityId = 1;
+const { pool } = require('../db/database');
 
 class Social {
-  static follow(followerId, followingId) {
+  static async follow(followerId, followingId) {
     if (followerId === followingId) {
       throw new Error('Cannot follow yourself');
     }
 
-    const existingFollow = _.find(follows, { followerId, followingId });
-    if (existingFollow) {
-      throw new Error('Already following this user');
+    try {
+      const existingFollow = await pool.query(
+        'SELECT * FROM follows WHERE follower_id = $1 AND following_id = $2',
+        [followerId, followingId]
+      );
+
+      if (existingFollow.rows.length > 0) {
+        throw new Error('Already following this user');
+      }
+
+      const result = await pool.query(
+        'INSERT INTO follows (follower_id, following_id) VALUES ($1, $2) RETURNING *',
+        [followerId, followingId]
+      );
+
+      return result.rows[0];
+    } catch (error) {
+      throw error;
     }
-
-    const follow = {
-      id: nextFollowId++,
-      followerId,
-      followingId,
-      createdAt: new Date()
-    };
-
-    follows.push(follow);
-    return follow;
   }
 
-  static unfollow(followerId, followingId) {
-    const followIndex = _.findIndex(follows, { followerId, followingId });
-    if (followIndex === -1) {
-      throw new Error('Not following this user');
+  static async unfollow(followerId, followingId) {
+    try {
+      const result = await pool.query(
+        'DELETE FROM follows WHERE follower_id = $1 AND following_id = $2 RETURNING *',
+        [followerId, followingId]
+      );
+
+      if (result.rows.length === 0) {
+        throw new Error('Not following this user');
+      }
+
+      return true;
+    } catch (error) {
+      throw error;
     }
-
-    follows.splice(followIndex, 1);
-    return true;
   }
 
-  static isFollowing(followerId, followingId) {
-    return !!_.find(follows, { followerId, followingId });
-  }
-
-  static getFollowers(userId) {
-    return _.filter(follows, { followingId: userId });
-  }
-
-  static getFollowing(userId) {
-    return _.filter(follows, { followerId: userId });
-  }
-
-  static getFollowersCount(userId) {
-    return this.getFollowers(userId).length;
-  }
-
-  static getFollowingCount(userId) {
-    return this.getFollowing(userId).length;
-  }
-
-  static addActivity(userId, type, data) {
-    const activity = {
-      id: nextActivityId++,
-      userId,
-      type,
-      data,
-      createdAt: new Date()
-    };
-
-    activities.push(activity);
-
-    if (activities.length > 1000) {
-      activities = activities.slice(-1000);
+  static async isFollowing(followerId, followingId) {
+    try {
+      const result = await pool.query(
+        'SELECT * FROM follows WHERE follower_id = $1 AND following_id = $2',
+        [followerId, followingId]
+      );
+      return result.rows.length > 0;
+    } catch (error) {
+      throw error;
     }
-
-    return activity;
   }
 
-  static getFollowingActivities(userId, limit = 20) {
-    const following = this.getFollowing(userId).map(f => f.followingId);
-    following.push(userId);
-
-    const userActivities = _.filter(activities, activity =>
-      following.includes(activity.userId)
-    );
-
-    return _.orderBy(userActivities, 'createdAt', 'desc').slice(0, limit);
-  }
-
-  static getUserActivities(userId, limit = 10) {
-    const userActivities = _.filter(activities, { userId });
-    return _.orderBy(userActivities, 'createdAt', 'desc').slice(0, limit);
-  }
-
-  static searchUsers(query, currentUserId, limit = 10) {
-    const User = require('./User');
-    const allUsers = User.getAllUsers ? User.getAllUsers() : [];
-
-    if (!query) {
-      return allUsers
-        .filter(user => user.id !== currentUserId)
-        .slice(0, limit)
-        .map(user => ({
-          ...user.toJSON(),
-          isFollowing: this.isFollowing(currentUserId, user.id),
-          followersCount: this.getFollowersCount(user.id)
-        }));
+  static async getFollowers(userId) {
+    try {
+      const result = await pool.query('SELECT * FROM follows WHERE following_id = $1', [userId]);
+      return result.rows;
+    } catch (error) {
+      throw error;
     }
+  }
 
-    const searchResults = allUsers.filter(user =>
-      user.id !== currentUserId && (
-        _.includes(_.toLower(user.name), _.toLower(query)) ||
-        _.includes(_.toLower(user.email), _.toLower(query))
-      )
-    );
+  static async getFollowing(userId) {
+    try {
+      const result = await pool.query('SELECT * FROM follows WHERE follower_id = $1', [userId]);
+      return result.rows;
+    } catch (error) {
+      throw error;
+    }
+  }
 
-    return searchResults
-      .slice(0, limit)
-      .map(user => ({
-        ...user.toJSON(),
-        isFollowing: this.isFollowing(currentUserId, user.id),
-        followersCount: this.getFollowersCount(user.id)
+  static async getFollowersCount(userId) {
+    try {
+      const result = await pool.query('SELECT COUNT(*) FROM follows WHERE following_id = $1', [userId]);
+      return parseInt(result.rows[0].count);
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async getFollowingCount(userId) {
+    try {
+      const result = await pool.query('SELECT COUNT(*) FROM follows WHERE follower_id = $1', [userId]);
+      return parseInt(result.rows[0].count);
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async addActivity(userId, type, data) {
+    try {
+      const result = await pool.query(
+        'INSERT INTO activities (user_id, type, data) VALUES ($1, $2, $3) RETURNING *',
+        [userId, type, JSON.stringify(data)]
+      );
+
+      // Keep only latest 1000 activities per user to prevent unbounded growth
+      await pool.query(
+        'DELETE FROM activities WHERE user_id = $1 AND id NOT IN (SELECT id FROM activities WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1000)',
+        [userId]
+      );
+
+      return result.rows[0];
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async getFollowingActivities(userId, limit = 20) {
+    try {
+      const following = await this.getFollowing(userId);
+      const followingIds = following.map(f => f.following_id);
+      followingIds.push(userId);
+
+      const result = await pool.query(
+        'SELECT * FROM activities WHERE user_id = ANY($1) ORDER BY created_at DESC LIMIT $2',
+        [followingIds, limit]
+      );
+
+      return result.rows.map(row => ({
+        ...row,
+        data: typeof row.data === 'string' ? JSON.parse(row.data) : row.data
       }));
+    } catch (error) {
+      throw error;
+    }
   }
 
-  static getNetworkStats(userId) {
-    return {
-      followersCount: this.getFollowersCount(userId),
-      followingCount: this.getFollowingCount(userId),
-      activitiesCount: this.getUserActivities(userId).length
-    };
+  static async getUserActivities(userId, limit = 10) {
+    try {
+      const result = await pool.query(
+        'SELECT * FROM activities WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2',
+        [userId, limit]
+      );
+
+      return result.rows.map(row => ({
+        ...row,
+        data: typeof row.data === 'string' ? JSON.parse(row.data) : row.data
+      }));
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async searchUsers(query, currentUserId, limit = 10) {
+    try {
+      const User = require('./User');
+      let allUsers;
+
+      if (!query) {
+        const userResult = await pool.query(
+          'SELECT * FROM users WHERE id != $1 ORDER BY created_at DESC LIMIT $2',
+          [currentUserId, limit]
+        );
+        allUsers = userResult.rows.map(row => new User(row));
+      } else {
+        const userResult = await pool.query(
+          'SELECT * FROM users WHERE id != $1 AND (LOWER(name) LIKE LOWER($2) OR LOWER(email) LIKE LOWER($2)) ORDER BY created_at DESC LIMIT $3',
+          [currentUserId, `%${query}%`, limit]
+        );
+        allUsers = userResult.rows.map(row => new User(row));
+      }
+
+      const results = [];
+      for (const user of allUsers) {
+        const isFollowing = await this.isFollowing(currentUserId, user.id);
+        const followersCount = await this.getFollowersCount(user.id);
+        results.push({
+          ...user.toJSON(),
+          isFollowing,
+          followersCount
+        });
+      }
+
+      return results;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async getNetworkStats(userId) {
+    try {
+      const followersCount = await this.getFollowersCount(userId);
+      const followingCount = await this.getFollowingCount(userId);
+      const activities = await this.getUserActivities(userId);
+
+      return {
+        followersCount,
+        followingCount,
+        activitiesCount: activities.length
+      };
+    } catch (error) {
+      throw error;
+    }
   }
 }
 

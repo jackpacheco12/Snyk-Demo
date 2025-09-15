@@ -230,6 +230,11 @@ jobs:
       - name: Configure Docker for Artifact Registry
         run: gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev
 
+      - name: Pull images for scanning
+        run: |
+          docker pull ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/bookshelf-mvp/bookshelf-backend:latest
+          docker pull ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/bookshelf-mvp/bookshelf-frontend:latest
+
       - name: Scan backend container image
         uses: snyk/actions/docker@master
         continue-on-error: true

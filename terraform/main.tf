@@ -46,6 +46,10 @@ resource "google_project_service" "compute_api" {
   service = "compute.googleapis.com"
 }
 
+resource "google_project_service" "sql_api" {
+  service = "sqladmin.googleapis.com"
+}
+
 # GKE Cluster
 resource "google_container_cluster" "bookshelf_cluster" {
   name     = var.cluster_name
@@ -117,4 +121,71 @@ resource "google_project_iam_member" "gke_service_account_roles" {
   project = var.project_id
   role    = each.value
   member  = "serviceAccount:${google_service_account.gke_service_account.email}"
+}
+
+# Private Service Access for Cloud SQL
+resource "google_compute_global_address" "private_ip_alloc" {
+  name          = "bookshelf-private-ip"
+  purpose       = "VPC_PEERING"
+  address_type  = "INTERNAL"
+  prefix_length = 16
+  network       = google_compute_network.bookshelf_vpc.id
+}
+
+resource "google_service_networking_connection" "private_vpc_connection" {
+  network                 = google_compute_network.bookshelf_vpc.id
+  service                 = "servicenetworking.googleapis.com"
+  reserved_peering_ranges = [google_compute_global_address.private_ip_alloc.name]
+
+  depends_on = [google_project_service.sql_api]
+}
+
+# Cloud SQL PostgreSQL Instance
+resource "google_sql_database_instance" "bookshelf_db" {
+  name             = "bookshelf-mvp-db"
+  database_version = "POSTGRES_14"
+  region           = var.gcp_region
+
+  settings {
+    tier = "db-f1-micro"
+
+    ip_configuration {
+      ipv4_enabled    = true
+      private_network = google_compute_network.bookshelf_vpc.id
+    }
+
+    backup_configuration {
+      enabled                        = true
+      start_time                     = "02:00"
+      point_in_time_recovery_enabled = true
+      backup_retention_settings {
+        retained_backups = 7
+      }
+    }
+
+    database_flags {
+      name  = "max_connections"
+      value = "100"
+    }
+  }
+
+  deletion_protection = false
+
+  depends_on = [
+    google_service_networking_connection.private_vpc_connection,
+    google_project_service.sql_api
+  ]
+}
+
+# Database
+resource "google_sql_database" "bookshelf" {
+  name     = "bookshelf"
+  instance = google_sql_database_instance.bookshelf_db.name
+}
+
+# Database User
+resource "google_sql_user" "bookshelf_user" {
+  name     = "bookshelf"
+  instance = google_sql_database_instance.bookshelf_db.name
+  password = var.db_password
 }
