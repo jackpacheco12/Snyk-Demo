@@ -36,14 +36,14 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
         with:
-          args: --file=frontend/package.json --sarif-file-output=frontend-deps.sarif
+          args: --file=frontend/package.json --sarif-file-output=frontend-deps-${{ github.run_id }}.sarif
 
       - name: Upload frontend security report
         uses: github/codeql-action/upload-sarif@v3
-        if: hashFiles('frontend-deps.sarif') != ''
+        if: hashFiles('frontend-deps-${{ github.run_id }}.sarif') != ''
         with:
-          sarif_file: frontend-deps.sarif
-          category: frontend-deps
+          sarif_file: frontend-deps-${{ github.run_id }}.sarif
+          category: frontend-deps-${{ github.run_id }}
 
       # ================================
       # Backend Security Scanning
@@ -58,14 +58,14 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
         with:
-          args: --file=backend/package.json --sarif-file-output=backend-deps.sarif
+          args: --file=backend/package.json --sarif-file-output=backend-deps-${{ github.run_id }}.sarif
 
       - name: Upload backend security report
         uses: github/codeql-action/upload-sarif@v3
-        if: hashFiles('backend-deps.sarif') != ''
+        if: hashFiles('backend-deps-${{ github.run_id }}.sarif') != ''
         with:
-          sarif_file: backend-deps.sarif
-          category: backend-deps
+          sarif_file: backend-deps-${{ github.run_id }}.sarif
+          category: backend-deps-${{ github.run_id }}
 
       # ================================
       # Code Quality Scan
@@ -77,14 +77,14 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
         with:
           command: code test
-          args: --sarif-file-output=code-scan.sarif
+          args: --sarif-file-output=code-scan-${{ github.run_id }}.sarif
 
       - name: Upload code quality report
         uses: github/codeql-action/upload-sarif@v3
-        if: hashFiles('code-scan.sarif') != ''
+        if: hashFiles('code-scan-${{ github.run_id }}.sarif') != ''
         with:
-          sarif_file: code-scan.sarif
-          category: code-scan
+          sarif_file: code-scan-${{ github.run_id }}.sarif
+          category: code-scan-${{ github.run_id }}
 
       # ================================
       # Infrastructure as Code Scan
@@ -95,14 +95,14 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
         with:
-          args: --sarif-file-output=iac-scan.sarif
+          args: --sarif-file-output=iac-scan-${{ github.run_id }}.sarif
 
       - name: Upload IaC security report
         uses: github/codeql-action/upload-sarif@v3
-        if: hashFiles('iac-scan.sarif') != ''
+        if: hashFiles('iac-scan-${{ github.run_id }}.sarif') != ''
         with:
-          sarif_file: iac-scan.sarif
-          category: iac-scan
+          sarif_file: iac-scan-${{ github.run_id }}.sarif
+          category: iac-scan-${{ github.run_id }}
 
       # ================================
       # Container Security Scan
@@ -119,14 +119,14 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
         with:
           image: bookshelf-backend:scan
-          args: --sarif-file-output=backend-image.sarif
+          args: --sarif-file-output=backend-container-${{ github.run_id }}.sarif
 
       - name: Upload backend container security report
         uses: github/codeql-action/upload-sarif@v3
-        if: hashFiles('backend-image.sarif') != ''
+        if: hashFiles('backend-container-${{ github.run_id }}.sarif') != ''
         with:
-          sarif_file: backend-image.sarif
-          category: backend-image
+          sarif_file: backend-container-${{ github.run_id }}.sarif
+          category: backend-container-${{ github.run_id }}
 
       - name: Snyk container scan - Frontend
         uses: snyk/actions/docker@master
@@ -135,14 +135,14 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
         with:
           image: bookshelf-frontend:scan
-          args: --sarif-file-output=frontend-image.sarif
+          args: --sarif-file-output=frontend-container-${{ github.run_id }}.sarif
 
       - name: Upload frontend container security report
         uses: github/codeql-action/upload-sarif@v3
-        if: hashFiles('frontend-image.sarif') != ''
+        if: hashFiles('frontend-container-${{ github.run_id }}.sarif') != ''
         with:
-          sarif_file: frontend-image.sarif
-          category: frontend-image
+          sarif_file: frontend-container-${{ github.run_id }}.sarif
+          category: frontend-container-${{ github.run_id }}
 
   build-and-deploy:
     runs-on: ubuntu-latest
