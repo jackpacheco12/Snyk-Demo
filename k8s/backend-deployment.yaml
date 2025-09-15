@@ -26,7 +26,7 @@ spec:
         - name: PORT
           value: "5000"
         - name: DB_HOST
-          value: "172.22.0.3"
+          value: "postgres-db"
         - name: DB_NAME
           value: "bookshelf"
         - name: DB_USER
