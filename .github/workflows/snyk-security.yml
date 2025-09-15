@@ -13,10 +13,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout code
+      # 1. Checkout repository
       - uses: actions/checkout@v4
 
-      # 2. Setup Node.js with caching
+      # 2. Setup Node.js with proper caching
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
