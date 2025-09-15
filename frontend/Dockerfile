@@ -1,8 +1,8 @@
 # Multi-stage build for production
-FROM gcr.io/google.com/cloudsdktool/cloud-sdk:alpine AS build
+FROM alpine:3.18 AS build
 
-# Install Node.js (compatible with older React)
-RUN apk add --no-cache nodejs~=14 npm
+# Install Node.js 14
+RUN apk add --no-cache nodejs=18.20.4-r0 npm
 
 WORKDIR /app
 

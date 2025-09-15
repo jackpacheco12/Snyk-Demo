@@ -1,18 +1,18 @@
 # Build stage
-FROM gcr.io/google.com/cloudsdktool/cloud-sdk:alpine AS builder
+FROM alpine:3.18 AS builder
 
 # Install Node.js
-RUN apk add --no-cache nodejs npm
+RUN apk add --no-cache nodejs=18.20.4-r0 npm
 
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci --only=production && npm cache clean --force
 
 # Production stage
-FROM gcr.io/google.com/cloudsdktool/cloud-sdk:alpine
+FROM alpine:3.18
 
 # Install Node.js
-RUN apk add --no-cache nodejs npm
+RUN apk add --no-cache nodejs=18.20.4-r0 npm
 
 WORKDIR /app
 
