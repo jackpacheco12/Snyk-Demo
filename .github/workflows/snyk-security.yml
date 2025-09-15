@@ -36,14 +36,14 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
         with:
-          args: --file=frontend/package.json --sarif-file-output=snyk-frontend.sarif
+          args: --file=frontend/package.json --sarif-file-output=frontend-deps.sarif
 
       - name: Upload frontend security report
         uses: github/codeql-action/upload-sarif@v3
-        if: hashFiles('snyk-frontend.sarif') != ''
+        if: hashFiles('frontend-deps.sarif') != ''
         with:
-          sarif_file: snyk-frontend.sarif
-          category: snyk-frontend
+          sarif_file: frontend-deps.sarif
+          category: frontend-deps
 
       # ================================
       # Backend Security Scanning
@@ -58,14 +58,14 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
         with:
-          args: --file=backend/package.json --sarif-file-output=snyk-backend.sarif
+          args: --file=backend/package.json --sarif-file-output=backend-deps.sarif
 
       - name: Upload backend security report
         uses: github/codeql-action/upload-sarif@v3
-        if: hashFiles('snyk-backend.sarif') != ''
+        if: hashFiles('backend-deps.sarif') != ''
         with:
-          sarif_file: snyk-backend.sarif
-          category: snyk-backend
+          sarif_file: backend-deps.sarif
+          category: backend-deps
 
       # ================================
       # Code Quality Scan
@@ -77,14 +77,14 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
         with:
           command: code test
-          args: --sarif-file-output=snyk-code.sarif
+          args: --sarif-file-output=code-scan.sarif
 
       - name: Upload code quality report
         uses: github/codeql-action/upload-sarif@v3
-        if: hashFiles('snyk-code.sarif') != ''
+        if: hashFiles('code-scan.sarif') != ''
         with:
-          sarif_file: snyk-code.sarif
-          category: snyk-code
+          sarif_file: code-scan.sarif
+          category: code-scan
 
       # ================================
       # Infrastructure as Code Scan
@@ -95,14 +95,14 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
         with:
-          args: --sarif-file-output=snyk-iac.sarif
+          args: --sarif-file-output=iac-scan.sarif
 
       - name: Upload IaC security report
         uses: github/codeql-action/upload-sarif@v3
-        if: hashFiles('snyk-iac.sarif') != ''
+        if: hashFiles('iac-scan.sarif') != ''
         with:
-          sarif_file: snyk-iac.sarif
-          category: snyk-iac
+          sarif_file: iac-scan.sarif
+          category: iac-scan
 
       # ================================
       # Container Security Scan
@@ -119,14 +119,14 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
         with:
           image: bookshelf-backend:scan
-          args: --sarif-file-output=snyk-container-backend.sarif
+          args: --sarif-file-output=backend-image.sarif
 
       - name: Upload backend container security report
         uses: github/codeql-action/upload-sarif@v3
-        if: hashFiles('snyk-container-backend.sarif') != ''
+        if: hashFiles('backend-image.sarif') != ''
         with:
-          sarif_file: snyk-container-backend.sarif
-          category: snyk-container-backend
+          sarif_file: backend-image.sarif
+          category: backend-image
 
       - name: Snyk container scan - Frontend
         uses: snyk/actions/docker@master
@@ -135,14 +135,14 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
         with:
           image: bookshelf-frontend:scan
-          args: --sarif-file-output=snyk-container-frontend.sarif
+          args: --sarif-file-output=frontend-image.sarif
 
       - name: Upload frontend container security report
         uses: github/codeql-action/upload-sarif@v3
-        if: hashFiles('snyk-container-frontend.sarif') != ''
+        if: hashFiles('frontend-image.sarif') != ''
         with:
-          sarif_file: snyk-container-frontend.sarif
-          category: snyk-container-frontend
+          sarif_file: frontend-image.sarif
+          category: frontend-image
 
   build-and-deploy:
     runs-on: ubuntu-latest
