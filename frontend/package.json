@@ -6,7 +6,7 @@
   "dependencies": {
     "react": "16.13.0",
     "react-dom": "16.13.0",
-    "react-scripts": "3.4.1",
+    "react-scripts": "4.0.0",
     "axios": "0.21.0",
     "lodash": "4.17.4",
     "moment": "2.24.0"
