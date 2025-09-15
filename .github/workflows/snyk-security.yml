@@ -205,10 +205,9 @@ jobs:
             exit 1
           }
 
-  container-security-scan:
     runs-on: ubuntu-latest
     needs: build-and-deploy
-    if: github.event_name == 'push' && github.ref == 'refs/heads/production'  # Container scanning enabled
+    if: github.event_name == 'push' && github.ref == 'refs/heads/production123'  # Container scanning enabled
     permissions:
       contents: read
       security-events: write
