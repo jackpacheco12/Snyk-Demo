@@ -16,7 +16,7 @@ jobs:
       # 1. Checkout code
       - uses: actions/checkout@v4
 
-      # 2. Setup Node.js
+      # 2. Setup Node.js with caching
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -44,7 +44,7 @@ jobs:
       - name: Snyk frontend test
         run: |
           cd bookshelf-mvp/frontend
-          snyk test --severity-threshold=high --sarif-file-output=../../snyk-frontend.sarif || true
+          snyk test --severity-threshold=high --sarif=../../snyk-frontend.sarif || true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
 
@@ -52,7 +52,7 @@ jobs:
       - name: Snyk backend test
         run: |
           cd bookshelf-mvp/backend
-          snyk test --severity-threshold=high --sarif-file-output=../../snyk-backend.sarif || true
+          snyk test --severity-threshold=high --sarif=../../snyk-backend.sarif || true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
 
