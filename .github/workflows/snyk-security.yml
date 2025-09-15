@@ -9,7 +9,7 @@ on:
 jobs:
   security-scan:
     runs-on: ubuntu-latest
-    if: false  # Set to true to enable security scanning
+    if: true  # Security scanning enabled
     permissions:
       security-events: write
       actions: read
@@ -107,6 +107,7 @@ jobs:
 
   build-and-deploy:
     runs-on: ubuntu-latest
+    needs: security-scan
     if: github.event_name == 'push' && github.ref == 'refs/heads/production'
 
     steps:
@@ -207,7 +208,7 @@ jobs:
   container-security-scan:
     runs-on: ubuntu-latest
     needs: build-and-deploy
-    if: false  # Set to true to enable container security scanning
+    if: github.event_name == 'push' && github.ref == 'refs/heads/production'  # Container scanning enabled
     permissions:
       contents: read
       security-events: write
