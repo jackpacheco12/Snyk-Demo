@@ -1,3 +1,12 @@
+name: Snyk Security Scan MVP
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+
 jobs:
   security:
     runs-on: ubuntu-latest
