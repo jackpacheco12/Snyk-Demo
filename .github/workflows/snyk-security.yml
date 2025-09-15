@@ -36,36 +36,38 @@ jobs:
         run: npm ci
         working-directory: ./bookshelf-mvp/backend
 
-      # 5. Run Snyk frontend test
+      # 5. Install Snyk CLI
+      - name: Install Snyk CLI
+        run: npm install -g snyk
+
+      # 6. Run Snyk frontend test
       - name: Snyk frontend test
-        uses: snyk/actions/node@master
-        continue-on-error: true
+        run: |
+          cd bookshelf-mvp/frontend
+          snyk test --severity-threshold=high --sarif-file-output=../../snyk-frontend.sarif || true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
-        with:
-          args: test --file=bookshelf-mvp/frontend/package.json --severity-threshold=high --sarif-file-output=snyk-frontend.sarif
 
-      # 6. Run Snyk backend test
+      # 7. Run Snyk backend test
       - name: Snyk backend test
-        uses: snyk/actions/node@master
-        continue-on-error: true
+        run: |
+          cd bookshelf-mvp/backend
+          snyk test --severity-threshold=high --sarif-file-output=../../snyk-backend.sarif || true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
-        with:
-          args: test --file=bookshelf-mvp/backend/package.json --severity-threshold=high --sarif-file-output=snyk-backend.sarif
 
-      # 7. Upload frontend SARIF
+      # 8. Upload frontend SARIF
       - name: Upload frontend SARIF
         uses: github/codeql-action/upload-sarif@v3
-        if: always()
+        if: always() && hashFiles('snyk-frontend.sarif') != ''
         with:
           sarif_file: snyk-frontend.sarif
           category: frontend
 
-      # 8. Upload backend SARIF
+      # 9. Upload backend SARIF
       - name: Upload backend SARIF
         uses: github/codeql-action/upload-sarif@v3
-        if: always()
+        if: always() && hashFiles('snyk-backend.sarif') != ''
         with:
           sarif_file: snyk-backend.sarif
           category: backend
