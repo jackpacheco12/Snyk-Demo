@@ -143,6 +143,9 @@ jobs:
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
 
+      - name: Install GKE auth plugin
+        run: gcloud components install gke-gcloud-auth-plugin
+
       # ================================
       # Docker Build & Push
       # ================================
