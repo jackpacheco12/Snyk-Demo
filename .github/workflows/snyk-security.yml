@@ -38,7 +38,7 @@ jobs:
 
       # 5. Run Snyk frontend test
       - name: Snyk frontend test
-        uses: snyk/actions/node@v3
+        uses: snyk/actions/node@master
         continue-on-error: true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
@@ -47,7 +47,7 @@ jobs:
 
       # 6. Run Snyk backend test
       - name: Snyk backend test
-        uses: snyk/actions/node@v3
+        uses: snyk/actions/node@master
         continue-on-error: true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
