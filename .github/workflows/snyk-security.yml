@@ -39,22 +39,22 @@ jobs:
       # 5. Run Snyk frontend test
       - name: Snyk frontend test
         uses: snyk/actions/node@v3
-        with:
-          args: test --file=package.json --severity-threshold=high --sarif=snyk-frontend.sarif
+        working-directory: ./bookshelf-mvp/frontend
+        continue-on-error: true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        continue-on-error: true
-        working-directory: ./bookshelf-mvp/frontend
+        with:
+          args: test --file=package.json --severity-threshold=high --sarif=snyk-frontend.sarif
 
       # 6. Run Snyk backend test
       - name: Snyk backend test
         uses: snyk/actions/node@v3
-        with:
-          args: test --file=package.json --severity-threshold=high --sarif=snyk-backend.sarif
+        working-directory: ./bookshelf-mvp/backend
+        continue-on-error: true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        continue-on-error: true
-        working-directory: ./bookshelf-mvp/backend
+        with:
+          args: test --file=package.json --severity-threshold=high --sarif=snyk-backend.sarif
 
       # 7. Upload frontend SARIF
       - name: Upload frontend SARIF
