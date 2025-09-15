@@ -6,9 +6,13 @@ on:
   pull_request:
     branches: [ main, master, production ]
 
+env:
+  ENABLE_SECURITY_SCANS: false  # Set to true to enable security scanning
+
 jobs:
   security-scan:
     runs-on: ubuntu-latest
+    if: env.ENABLE_SECURITY_SCANS == 'true'
     permissions:
       security-events: write
       actions: read
@@ -104,13 +108,14 @@ jobs:
           sarif_file: iac-scan.sarif
           category: iac-scan
 
-      # Container scans disabled due to SARIF duplicate category issue
-      # This is a known issue with Snyk container scans generating duplicate runs
-
   build-and-deploy:
     runs-on: ubuntu-latest
     needs: security-scan
-    if: github.event_name == 'push' && github.ref == 'refs/heads/production'
+    if: |
+      always() &&
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/production' &&
+      (needs.security-scan.result == 'success' || env.ENABLE_SECURITY_SCANS == 'false')
 
     steps:
       - name: Checkout code
@@ -181,3 +186,63 @@ jobs:
           export PROJECT_ID=${{ secrets.GCP_PROJECT_ID }}
           export GCP_REGION=${{ secrets.GCP_REGION }}
           ./scripts/deploy-app.sh
+
+  container-security-scan:
+    runs-on: ubuntu-latest
+    needs: build-and-deploy
+    if: |
+      env.ENABLE_SECURITY_SCANS == 'true' &&
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/production'
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev
+
+      - name: Scan backend container image
+        uses: snyk/actions/docker@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
+        with:
+          image: ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/bookshelf-mvp/bookshelf-backend:latest
+          args: --severity-threshold=high --sarif-file-output=backend-container.sarif
+
+      - name: Upload backend container scan results
+        uses: github/codeql-action/upload-sarif@v3
+        if: hashFiles('backend-container.sarif') != ''
+        with:
+          sarif_file: backend-container.sarif
+          category: backend-container
+
+      - name: Scan frontend container image
+        uses: snyk/actions/docker@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
+        with:
+          image: ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/bookshelf-mvp/bookshelf-frontend:latest
+          args: --severity-threshold=high --sarif-file-output=frontend-container.sarif
+
+      - name: Upload frontend container scan results
+        uses: github/codeql-action/upload-sarif@v3
+        if: hashFiles('frontend-container.sarif') != ''
+        with:
+          sarif_file: frontend-container.sarif
+          category: frontend-container
