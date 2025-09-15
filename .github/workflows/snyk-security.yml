@@ -39,35 +39,33 @@ jobs:
       # 5. Run Snyk frontend test
       - name: Snyk frontend test
         uses: snyk/actions/node@v3
-        working-directory: ./bookshelf-mvp/frontend
         continue-on-error: true
         env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+          SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
         with:
-          args: test --file=package.json --severity-threshold=high --sarif=snyk-frontend.sarif
+          args: test --file=bookshelf-mvp/frontend/package.json --severity-threshold=high --sarif-file-output=snyk-frontend.sarif
 
       # 6. Run Snyk backend test
       - name: Snyk backend test
         uses: snyk/actions/node@v3
-        working-directory: ./bookshelf-mvp/backend
         continue-on-error: true
         env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+          SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
         with:
-          args: test --file=package.json --severity-threshold=high --sarif=snyk-backend.sarif
+          args: test --file=bookshelf-mvp/backend/package.json --severity-threshold=high --sarif-file-output=snyk-backend.sarif
 
       # 7. Upload frontend SARIF
       - name: Upload frontend SARIF
         uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: ./bookshelf-mvp/frontend/snyk-frontend.sarif
-          category: frontend
         if: always()
+        with:
+          sarif_file: snyk-frontend.sarif
+          category: frontend
 
       # 8. Upload backend SARIF
       - name: Upload backend SARIF
         uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: ./bookshelf-mvp/backend/snyk-backend.sarif
-          category: backend
         if: always()
+        with:
+          sarif_file: snyk-backend.sarif
+          category: backend
