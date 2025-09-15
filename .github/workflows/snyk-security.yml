@@ -1,0 +1,52 @@
+name: Snyk Security Scan
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  schedule:
+    - cron: '0 2 * * 1'
+
+jobs:
+  snyk-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: |
+            bookshelf-mvp/frontend/package-lock.json
+            bookshelf-mvp/backend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: ./bookshelf-mvp/frontend
+        run: npm ci
+
+      - name: Install backend dependencies
+        working-directory: ./bookshelf-mvp/backend
+        run: npm ci
+
+      - name: Run Snyk to check for frontend vulnerabilities
+        uses: snyk/actions/node@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --file=bookshelf-mvp/frontend/package.json --severity-threshold=high
+
+      - name: Run Snyk to check for backend vulnerabilities
+        uses: snyk/actions/node@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --file=bookshelf-mvp/backend/package.json --severity-threshold=high
+
+      - name: Upload result to GitHub Code Scanning
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: snyk.sarif
