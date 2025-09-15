@@ -16,15 +16,13 @@ jobs:
       # 1. Checkout repository
       - uses: actions/checkout@v4
 
-      # 2. Setup Node.js with proper caching
+      # 2. Setup Node.js with caching for both dependency files
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
           cache: 'npm'
-          cache-dependency-path: |
-            bookshelf-mvp/frontend/package-lock.json
-            bookshelf-mvp/backend/package-lock.json
+          cache-dependency-path: '**/package-lock.json'
 
       # 3. Install frontend dependencies
       - name: Install frontend dependencies
@@ -36,38 +34,29 @@ jobs:
         run: npm ci
         working-directory: ./bookshelf-mvp/backend
 
-      # 5. Install Snyk CLI
-      - name: Install Snyk CLI
-        run: npm install -g snyk
-
-      # 6. Run Snyk frontend test
-      - name: Snyk frontend test
+      # 5. Run Snyk tests for both frontend and backend
+      - name: Run Snyk tests
+        continue-on-error: true
         run: |
-          cd bookshelf-mvp/frontend
-          snyk test --severity-threshold=high --sarif=../../snyk-frontend.sarif || true
+          npm install -g snyk
+          # Run Snyk frontend test
+          snyk test --file=bookshelf-mvp/frontend/package.json --severity-threshold=high --sarif=snyk-frontend.sarif || true
+          # Run Snyk backend test
+          snyk test --file=bookshelf-mvp/backend/package.json --severity-threshold=high --sarif=snyk-backend.sarif || true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
 
-      # 7. Run Snyk backend test
-      - name: Snyk backend test
-        run: |
-          cd bookshelf-mvp/backend
-          snyk test --severity-threshold=high --sarif=../../snyk-backend.sarif || true
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
-
-      # 8. Upload frontend SARIF
-      - name: Upload frontend SARIF
+      # 6. Upload SARIF results to GitHub Code Scanning
+      - name: Upload SARIF file for frontend
         uses: github/codeql-action/upload-sarif@v3
-        if: always() && hashFiles('snyk-frontend.sarif') != ''
+        if: always()
         with:
           sarif_file: snyk-frontend.sarif
-          category: frontend
+          category: snyk-frontend
 
-      # 9. Upload backend SARIF
-      - name: Upload backend SARIF
+      - name: Upload SARIF file for backend
         uses: github/codeql-action/upload-sarif@v3
-        if: always() && hashFiles('snyk-backend.sarif') != ''
+        if: always()
         with:
           sarif_file: snyk-backend.sarif
-          category: backend
+          category: snyk-backend
