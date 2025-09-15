@@ -73,7 +73,7 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
         with:
-          args: code test ./ --sarif-file-output=snyk-code.sarif
+          args: code ./ --sarif-file-output=snyk-code.sarif
 
       # Upload SAST SARIF
       - name: Upload SAST SARIF
