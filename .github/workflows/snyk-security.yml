@@ -1,15 +1,6 @@
-name: Snyk Security Scan MVP
-
-on:
-  push:
-    branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
-
 jobs:
   security:
     runs-on: ubuntu-latest
-
     permissions:
       security-events: write
       actions: read
@@ -17,6 +8,11 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      # Install frontend dependencies
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: ./frontend
 
       # Run Snyk on frontend
       - name: Snyk frontend scan
@@ -34,6 +30,11 @@ jobs:
         with:
           sarif_file: snyk-frontend.sarif
           category: snyk-frontend
+
+      # Install backend dependencies
+      - name: Install backend dependencies
+        run: npm ci
+        working-directory: ./backend
 
       # Run Snyk on backend
       - name: Snyk backend scan
