@@ -19,50 +19,50 @@ jobs:
       - uses: actions/checkout@v4
 
       # ================================
-      # Frontend OSS Scan
+      # Frontend OSS Scan - DISABLED FOR SAST TESTING
       # ================================
-      - name: Install frontend dependencies
-        run: npm ci
-        working-directory: ./frontend
+      # - name: Install frontend dependencies
+      #   run: npm ci
+      #   working-directory: ./frontend
 
-      - name: Snyk frontend OSS scan
-        uses: snyk/actions/node@master
-        continue-on-error: true
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
-        with:
-          args: --file=frontend/package.json --sarif-file-output=snyk-frontend-oss.sarif
+      # - name: Snyk frontend OSS scan
+      #   uses: snyk/actions/node@master
+      #   continue-on-error: true
+      #   env:
+      #     SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
+      #   with:
+      #     args: --file=frontend/package.json --sarif-file-output=snyk-frontend-oss.sarif
 
-      # Upload frontend OSS SARIF
-      - name: Upload frontend OSS SARIF
-        uses: github/codeql-action/upload-sarif@v3
-        if: hashFiles('snyk-frontend-oss.sarif') != ''
-        with:
-          sarif_file: snyk-frontend-oss.sarif
-          category: snyk-frontend-oss
+      # # Upload frontend OSS SARIF
+      # - name: Upload frontend OSS SARIF
+      #   uses: github/codeql-action/upload-sarif@v3
+      #   if: hashFiles('snyk-frontend-oss.sarif') != ''
+      #   with:
+      #     sarif_file: snyk-frontend-oss.sarif
+      #     category: snyk-frontend-oss
 
       # ================================
-      # Backend OSS Scan
+      # Backend OSS Scan - DISABLED FOR SAST TESTING
       # ================================
-      - name: Install backend dependencies
-        run: npm ci
-        working-directory: ./backend
+      # - name: Install backend dependencies
+      #   run: npm ci
+      #   working-directory: ./backend
 
-      - name: Snyk backend OSS scan
-        uses: snyk/actions/node@master
-        continue-on-error: true
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
-        with:
-          args: --file=backend/package.json --sarif-file-output=snyk-backend-oss.sarif
+      # - name: Snyk backend OSS scan
+      #   uses: snyk/actions/node@master
+      #   continue-on-error: true
+      #   env:
+      #     SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
+      #   with:
+      #     args: --file=backend/package.json --sarif-file-output=snyk-backend-oss.sarif
 
-      # Upload backend OSS SARIF
-      - name: Upload backend OSS SARIF
-        uses: github/codeql-action/upload-sarif@v3
-        if: hashFiles('snyk-backend-oss.sarif') != ''
-        with:
-          sarif_file: snyk-backend-oss.sarif
-          category: snyk-backend-oss
+      # # Upload backend OSS SARIF
+      # - name: Upload backend OSS SARIF
+      #   uses: github/codeql-action/upload-sarif@v3
+      #   if: hashFiles('snyk-backend-oss.sarif') != ''
+      #   with:
+      #     sarif_file: snyk-backend-oss.sarif
+      #     category: snyk-backend-oss
 
       # ================================
       # SAST Scan (single scan for repo)
@@ -73,7 +73,8 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
         with:
-          args: code ./ --sarif-file-output=snyk-code.sarif
+          command: code
+          args: --sarif-file-output=snyk-code.sarif
 
       # Upload SAST SARIF
       - name: Upload SAST SARIF
