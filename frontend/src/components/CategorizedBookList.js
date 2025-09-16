@@ -25,10 +25,52 @@ const BookStatusCard = ({ book, onStatusChange, onRatingChange, onProgressUpdate
       padding: '16px',
       marginBottom: '12px',
       backgroundColor: 'white',
-      boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+      display: 'flex',
+      gap: '16px'
     }}>
-      <h4 style={{ margin: '0 0 8px 0', color: '#333' }}>{book.title}</h4>
-      <p style={{ margin: '0 0 8px 0', color: '#666', fontSize: '14px' }}>by {book.author}</p>
+      {/* Cover image section */}
+      {book.cover_image_url && (
+        <div style={{ flexShrink: 0 }}>
+          <img
+            src={book.cover_image_url}
+            alt={`Cover of ${book.title}`}
+            style={{
+              width: '60px',
+              height: '90px',
+              objectFit: 'cover',
+              borderRadius: '4px',
+              border: '1px solid #ddd'
+            }}
+            onError={(e) => {
+              console.log('Failed to load cover image:', book.cover_image_url);
+              e.target.style.display = 'none';
+            }}
+            onLoad={() => {
+              console.log('Successfully loaded cover image:', book.cover_image_url);
+            }}
+          />
+        </div>
+      )}
+
+      {/* Debug info for development */}
+      {book.cover_image_url && (
+        <div style={{ fontSize: '10px', color: '#888', marginBottom: '4px' }}>
+          Cover: {book.cover_image_url.substring(0, 50)}...
+        </div>
+      )}
+
+      {/* Book details section */}
+      <div style={{ flex: 1 }}>
+        <h4 style={{ margin: '0 0 8px 0', color: '#333' }}>{book.title}</h4>
+        <p style={{ margin: '0 0 8px 0', color: '#666', fontSize: '14px' }}>
+          by {book.author}
+          {book.publication_year && (
+            <span style={{ color: '#888', marginLeft: '8px' }}>
+              ({book.publication_year})
+            </span>
+          )}
+        </p>
 
       {/* Progress Bar for Currently Reading */}
       {book.status === 'currently-reading' && book.total_pages > 0 && (
@@ -148,6 +190,7 @@ const BookStatusCard = ({ book, onStatusChange, onRatingChange, onProgressUpdate
             <option value={5}>5 Stars</option>
           </select>
         )}
+      </div>
       </div>
     </div>
   );

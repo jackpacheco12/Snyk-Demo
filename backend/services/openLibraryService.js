@@ -58,7 +58,8 @@ class OpenLibraryService {
 
       // Get cover image if cover ID is available
       if (bookData.cover_i) {
-        enrichment.cover_image_url = `${this.coversUrl}/id/${bookData.cover_i}-M.jpg`;
+        // Use HTTP instead of HTTPS to avoid mixed content issues when served over HTTP
+        enrichment.cover_image_url = `http://covers.openlibrary.org/b/id/${bookData.cover_i}-M.jpg`;
       }
 
       return enrichment;
