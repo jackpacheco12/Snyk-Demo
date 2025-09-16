@@ -14,19 +14,36 @@ class OpenLibraryService {
     try {
       // Clean and format the search query
       const query = `${title} ${author}`.replace(/[^\w\s]/g, '').trim();
-      const searchUrl = `${this.baseUrl}/search.json?q=${encodeURIComponent(query)}&language=eng&limit=5`;
+      const searchUrl = `${this.baseUrl}/search.json?q=${encodeURIComponent(query)}&language=eng&limit=10`;
 
       const response = await axios.get(searchUrl, { timeout: 5000 });
       const books = response.data.docs;
 
       if (books && books.length > 0) {
-        // Find the first English book or fallback to first result
-        const englishBook = books.find(book =>
-          !book.language ||
-          book.language.includes('eng') ||
-          book.language.includes('en')
-        );
-        return englishBook || books[0];
+        // Enhanced English book filtering
+        const englishBooks = books.filter(book => {
+          // Check language field
+          const hasEnglishLanguage = !book.language ||
+            book.language.includes('eng') ||
+            book.language.includes('en');
+
+          // Check if title contains mostly English characters (basic check)
+          const titleIsEnglish = !book.title || /^[a-zA-Z0-9\s\-\.\,\:\;\!\?\'\"\(\)]+$/.test(book.title);
+
+          // Prefer books published in English-speaking countries
+          const englishPublishers = ['United States', 'United Kingdom', 'Canada', 'Australia'];
+          const hasEnglishPublisher = !book.publish_place ||
+            englishPublishers.some(country =>
+              book.publish_place.some && book.publish_place.some(place =>
+                place.includes(country)
+              )
+            );
+
+          return hasEnglishLanguage && titleIsEnglish;
+        });
+
+        // Return the first English book, or first book if no English books found
+        return englishBooks.length > 0 ? englishBooks[0] : books[0];
       }
 
       return null;
