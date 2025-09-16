@@ -208,9 +208,7 @@ jobs:
 
           # Verify database is actually ready to accept connections
           echo "Verifying database connectivity..."
-          kubectl run postgres-test --image=postgres:13 --rm -i --restart=Never -n bookshelf-mvp \
-            --env="PGPASSWORD=${{ secrets.DB_PASSWORD }}" \
-            -- psql -h postgres-db -U bookshelf -d bookshelf -c "SELECT 1;" || {
+          kubectl exec -n bookshelf-mvp deployment/postgres-db -- psql -U bookshelf -d bookshelf -c "SELECT 1;" || {
             echo "Database connectivity test failed"
             kubectl logs deployment/postgres-db -n bookshelf-mvp
             exit 1
@@ -236,9 +234,7 @@ jobs:
 
           # Test database migrations have run successfully
           echo "Verifying database schema..."
-          kubectl run db-schema-test --image=postgres:13 --rm -i --restart=Never -n bookshelf-mvp \
-            --env="PGPASSWORD=${{ secrets.DB_PASSWORD }}" \
-            -- psql -h postgres-db -U bookshelf -d bookshelf -c "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';" || {
+          kubectl exec -n bookshelf-mvp deployment/postgres-db -- psql -U bookshelf -d bookshelf -c "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';" || {
             echo "Database schema verification failed"
             kubectl logs deployment/bookshelf-backend -n bookshelf-mvp
             exit 1
