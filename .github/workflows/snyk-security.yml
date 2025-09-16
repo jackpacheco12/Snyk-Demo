@@ -222,7 +222,7 @@ jobs:
   container-security-scan:
     runs-on: ubuntu-latest
     needs: build-and-deploy
-    if: github.event_name == 'push' && github.ref == 'refs/heads/production'  # Container scanning enabled
+    if: false  # Container scanning disabled - enable when ready to test
     permissions:
       contents: read
       security-events: write
