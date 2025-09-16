@@ -5,7 +5,7 @@ const BookForm = ({ onSubmit }) => {
   const [author, setAuthor] = useState('');
   const [rating, setRating] = useState(0);
   const [status, setStatus] = useState('want-to-read');
-  const [totalPages, setTotalPages] = useState('');
+  const [currentPage, setCurrentPage] = useState('');
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -15,14 +15,13 @@ const BookForm = ({ onSubmit }) => {
         author: author.trim(),
         rating,
         status,
-        total_pages: totalPages ? parseInt(totalPages) : 0,
-        current_page: 0
+        current_page: currentPage ? parseInt(currentPage) : 0
       });
       setTitle('');
       setAuthor('');
       setRating(0);
       setStatus('want-to-read');
-      setTotalPages('');
+      setCurrentPage('');
     }
   };
 
@@ -34,7 +33,7 @@ const BookForm = ({ onSubmit }) => {
       marginBottom: '24px',
       backgroundColor: '#f8f9fa'
     }}>
-      <h2>Add New Book</h2>
+      <h2>Add New Book (Auto-Enriched)</h2>
       <form onSubmit={handleSubmit}>
         <div style={{ marginBottom: '16px' }}>
           <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>
@@ -99,12 +98,12 @@ const BookForm = ({ onSubmit }) => {
 
         <div style={{ marginBottom: '16px' }}>
           <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>
-            Total Pages (optional)
+            Current Page (optional)
           </label>
           <input
             type="number"
-            value={totalPages}
-            onChange={(e) => setTotalPages(e.target.value)}
+            value={currentPage}
+            onChange={(e) => setCurrentPage(e.target.value)}
             min="0"
             style={{
               width: '100%',
@@ -113,7 +112,7 @@ const BookForm = ({ onSubmit }) => {
               borderRadius: '4px',
               fontSize: '16px'
             }}
-            placeholder="Enter total number of pages"
+            placeholder="Enter page you're currently on"
           />
         </div>
 
