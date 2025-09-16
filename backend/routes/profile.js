@@ -12,8 +12,7 @@ router.get('/', auth, (req, res) => {
 router.put('/', auth, [
   body('name').optional().notEmpty().withMessage('Name cannot be empty'),
   body('bio').optional().isLength({ max: 500 }).withMessage('Bio must be less than 500 characters'),
-  body('favoriteGenre').optional().notEmpty().withMessage('Favorite genre cannot be empty'),
-  body('booksRead').optional().isInt({ min: 0 }).withMessage('Books read must be a positive number')
+  body('favoriteGenre').optional().notEmpty().withMessage('Favorite genre cannot be empty')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -21,13 +20,15 @@ router.put('/', auth, [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { name, bio, favoriteGenre, booksRead } = req.body;
+    const { name, bio, favoriteGenre } = req.body;
     const updateData = {};
 
     if (name !== undefined) updateData.name = name;
     if (bio !== undefined) updateData.bio = bio;
     if (favoriteGenre !== undefined) updateData.favoriteGenre = favoriteGenre;
-    if (booksRead !== undefined) updateData.booksRead = parseInt(booksRead);
+
+    // Books read count is always calculated dynamically from book statuses
+    // Remove manual booksRead updating to prevent inconsistencies
 
     const updatedUser = await User.updateById(req.user.id, updateData);
 
