@@ -252,6 +252,15 @@ jobs:
             exit 1
           }
 
+          # Force update deployments to use latest images
+          echo "Updating deployments to use latest Docker images..."
+          kubectl set image deployment/bookshelf-backend bookshelf-backend=$GCP_REGION-docker.pkg.dev/$PROJECT_ID/bookshelf-mvp/bookshelf-backend:latest -n bookshelf-mvp
+          kubectl set image deployment/bookshelf-frontend bookshelf-frontend=$GCP_REGION-docker.pkg.dev/$PROJECT_ID/bookshelf-mvp/bookshelf-frontend:latest -n bookshelf-mvp
+
+          # Wait for the image updates to complete
+          kubectl rollout status deployment/bookshelf-backend -n bookshelf-mvp --timeout=300s
+          kubectl rollout status deployment/bookshelf-frontend -n bookshelf-mvp --timeout=300s
+
           echo "Checking final deployment status..."
           kubectl get pods -n bookshelf-mvp
           kubectl get deployments -n bookshelf-mvp
