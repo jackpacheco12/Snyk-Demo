@@ -89,8 +89,8 @@ app.post('/api/books', auth, async (req, res) => {
     console.log(`Enriching book: ${title} by ${author}`);
     const enrichmentData = await openLibraryService.enrichBook(title, author);
 
-    // Use enriched total_pages if user didn't provide it and API has data
-    const finalTotalPages = total_pages || enrichmentData.total_pages || 0;
+    // Always use API total_pages if available, fallback to user input, then 0
+    const finalTotalPages = enrichmentData.total_pages || total_pages || 0;
 
     const result = await pool.query(
       'INSERT INTO books (title, author, rating, status, total_pages, current_page, cover_image_url, publication_year, user_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *',
