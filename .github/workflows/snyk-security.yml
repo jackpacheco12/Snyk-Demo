@@ -165,12 +165,17 @@ jobs:
           REGION=${{ secrets.GCP_REGION }}
           REGISTRY_URL="$REGION-docker.pkg.dev/$PROJECT_ID/bookshelf-mvp"
 
+          # Use git commit SHA for unique image tags
+          IMAGE_TAG=${GITHUB_SHA::8}
+
           # Build and push backend (with platform specification for ARM64 to AMD64 compatibility)
-          docker build --platform linux/amd64 -t $REGISTRY_URL/bookshelf-backend:latest ./backend
+          docker build --platform linux/amd64 -t $REGISTRY_URL/bookshelf-backend:$IMAGE_TAG -t $REGISTRY_URL/bookshelf-backend:latest ./backend
+          docker push $REGISTRY_URL/bookshelf-backend:$IMAGE_TAG
           docker push $REGISTRY_URL/bookshelf-backend:latest
 
           # Build and push frontend (with platform specification for ARM64 to AMD64 compatibility)
-          docker build --platform linux/amd64 -t $REGISTRY_URL/bookshelf-frontend:latest ./frontend
+          docker build --platform linux/amd64 -t $REGISTRY_URL/bookshelf-frontend:$IMAGE_TAG -t $REGISTRY_URL/bookshelf-frontend:latest ./frontend
+          docker push $REGISTRY_URL/bookshelf-frontend:$IMAGE_TAG
           docker push $REGISTRY_URL/bookshelf-frontend:latest
 
       # ================================
@@ -252,10 +257,11 @@ jobs:
             exit 1
           }
 
-          # Force update deployments to use latest images
-          echo "Updating deployments to use latest Docker images..."
-          kubectl set image deployment/bookshelf-backend backend=$GCP_REGION-docker.pkg.dev/$PROJECT_ID/bookshelf-mvp/bookshelf-backend:latest -n bookshelf-mvp
-          kubectl set image deployment/bookshelf-frontend frontend=$GCP_REGION-docker.pkg.dev/$PROJECT_ID/bookshelf-mvp/bookshelf-frontend:latest -n bookshelf-mvp
+          # Update deployments with new image tags to force pod updates
+          echo "Updating deployments to use new Docker images..."
+          IMAGE_TAG=${GITHUB_SHA::8}
+          kubectl set image deployment/bookshelf-backend backend=$GCP_REGION-docker.pkg.dev/$PROJECT_ID/bookshelf-mvp/bookshelf-backend:$IMAGE_TAG -n bookshelf-mvp
+          kubectl set image deployment/bookshelf-frontend frontend=$GCP_REGION-docker.pkg.dev/$PROJECT_ID/bookshelf-mvp/bookshelf-frontend:$IMAGE_TAG -n bookshelf-mvp
 
           # Wait for the image updates to complete
           kubectl rollout status deployment/bookshelf-backend -n bookshelf-mvp --timeout=300s
