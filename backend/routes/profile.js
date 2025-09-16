@@ -2,6 +2,7 @@ const express = require('express');
 const { body, validationResult } = require('express-validator');
 const User = require('../models/User');
 const { auth } = require('../middleware/auth');
+const { pool } = require('../config/database');
 const router = express.Router();
 
 router.get('/', auth, (req, res) => {
@@ -43,31 +44,43 @@ router.put('/', auth, [
   }
 });
 
-router.get('/stats', auth, (req, res) => {
-  const user = req.user;
+router.get('/stats', auth, async (req, res) => {
+  try {
+    const user = req.user;
 
-  const stats = {
-    totalBooksRead: user.booksRead || 0,
-    favoriteGenre: user.favoriteGenre || 'Not specified',
-    memberSince: user.createdAt,
-    profileCompletion: calculateProfileCompletion(user)
-  };
+    // Get actual books read count from database
+    const booksReadResult = await pool.query(
+      'SELECT COUNT(*) as count FROM books WHERE user_id = $1 AND status = $2',
+      [user.id, 'read']
+    );
+    const actualBooksRead = parseInt(booksReadResult.rows[0].count);
 
-  res.json(stats);
+    const stats = {
+      totalBooksRead: actualBooksRead,
+      favoriteGenre: user.favoriteGenre || 'Not specified',
+      memberSince: user.createdAt,
+      profileCompletion: calculateProfileCompletion(user, actualBooksRead)
+    };
+
+    res.json(stats);
+  } catch (error) {
+    console.error('Error fetching profile stats:', error);
+    res.status(500).json({ error: 'Failed to fetch profile stats' });
+  }
 });
 
-function calculateProfileCompletion(user) {
+function calculateProfileCompletion(user, actualBooksRead = 0) {
   let completion = 0;
   const fields = ['name', 'bio', 'favoriteGenre'];
 
   fields.forEach(field => {
     if (user[field] && user[field].trim() !== '') {
-      completion += 33.33;
+      completion += 25;
     }
   });
 
-  if (user.booksRead > 0) {
-    completion += 33.34;
+  if (actualBooksRead > 0) {
+    completion += 25;
   }
 
   return Math.round(completion);

@@ -3,7 +3,7 @@ import axios from 'axios';
 
 const API_BASE = process.env.REACT_APP_API_URL || '';
 
-const BookStatusCard = ({ book, onStatusChange, onRatingChange, onProgressUpdate }) => {
+const BookStatusCard = ({ book, onStatusChange, onRatingChange, onProgressUpdate, onDelete }) => {
   const [currentPageInput, setCurrentPageInput] = useState(book.current_page || 0);
   const [totalPagesInput, setTotalPagesInput] = useState(book.total_pages || 0);
 
@@ -190,13 +190,29 @@ const BookStatusCard = ({ book, onStatusChange, onRatingChange, onProgressUpdate
             <option value={5}>5 Stars</option>
           </select>
         )}
+
+        <button
+          onClick={() => onDelete(book.id)}
+          style={{
+            padding: '4px 8px',
+            backgroundColor: '#dc3545',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            fontSize: '12px',
+            cursor: 'pointer'
+          }}
+          title="Delete book"
+        >
+          🗑️ Delete
+        </button>
       </div>
       </div>
     </div>
   );
 };
 
-const CategorySection = ({ title, books, icon, onStatusChange, onRatingChange, onProgressUpdate }) => {
+const CategorySection = ({ title, books, icon, onStatusChange, onRatingChange, onProgressUpdate, onDelete }) => {
   return (
     <div style={{
       backgroundColor: 'white',
@@ -228,6 +244,7 @@ const CategorySection = ({ title, books, icon, onStatusChange, onRatingChange, o
             onStatusChange={onStatusChange}
             onRatingChange={onRatingChange}
             onProgressUpdate={onProgressUpdate}
+            onDelete={onDelete}
           />
         ))
       )}
@@ -286,6 +303,17 @@ const CategorizedBookList = () => {
     }
   };
 
+  const deleteBook = async (bookId) => {
+    if (window.confirm('Are you sure you want to delete this book?')) {
+      try {
+        await axios.delete(`${API_BASE}/api/books/${bookId}`);
+        fetchCategorizedBooks();
+      } catch (error) {
+        console.error('Error deleting book:', error);
+      }
+    }
+  };
+
   if (loading) {
     return (
       <div style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
@@ -303,6 +331,7 @@ const CategorizedBookList = () => {
         onStatusChange={updateBookStatus}
         onRatingChange={updateBookRating}
         onProgressUpdate={updateBookProgress}
+        onDelete={deleteBook}
       />
 
       <CategorySection
@@ -312,6 +341,7 @@ const CategorizedBookList = () => {
         onStatusChange={updateBookStatus}
         onRatingChange={updateBookRating}
         onProgressUpdate={updateBookProgress}
+        onDelete={deleteBook}
       />
 
       <CategorySection
@@ -321,6 +351,7 @@ const CategorizedBookList = () => {
         onStatusChange={updateBookStatus}
         onRatingChange={updateBookRating}
         onProgressUpdate={updateBookProgress}
+        onDelete={deleteBook}
       />
     </div>
   );
