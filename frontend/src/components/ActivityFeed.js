@@ -30,6 +30,14 @@ const ActivityFeed = () => {
         return '📚';
       case 'book_rated':
         return '⭐';
+      case 'book_finished':
+        return '✅';
+      case 'book_started':
+        return '📖';
+      case 'book_status_changed':
+        return '🔄';
+      case 'reading_progress':
+        return '📊';
       case 'follow':
         return '👥';
       default:
@@ -44,6 +52,14 @@ const ActivityFeed = () => {
       case 'book_added':
         return `${userName} added "${activity.data.book.title}" by ${activity.data.book.author}`;
       case 'book_rated':
+        return `${userName} ${activity.data.action}`;
+      case 'book_finished':
+        return `${userName} ${activity.data.action}`;
+      case 'book_started':
+        return `${userName} ${activity.data.action}`;
+      case 'book_status_changed':
+        return `${userName} ${activity.data.action}`;
+      case 'reading_progress':
         return `${userName} ${activity.data.action}`;
       case 'follow':
         return `${userName} started following ${activity.data.followedUser.name}`;
@@ -117,6 +133,36 @@ const ActivityFeed = () => {
                   {activity.type === 'book_rated' && activity.data.rating && (
                     <div style={{ marginBottom: '8px' }}>
                       {renderStars(activity.data.rating)}
+                    </div>
+                  )}
+
+                  {activity.type === 'reading_progress' && activity.data.progress_percentage !== undefined && (
+                    <div style={{ marginBottom: '12px' }}>
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: '4px',
+                        fontSize: '12px',
+                        color: '#666'
+                      }}>
+                        <span>Progress: {activity.data.current_page} / {activity.data.total_pages} pages</span>
+                        <span>{activity.data.progress_percentage}%</span>
+                      </div>
+                      <div style={{
+                        width: '100%',
+                        height: '6px',
+                        backgroundColor: '#e0e0e0',
+                        borderRadius: '3px',
+                        overflow: 'hidden'
+                      }}>
+                        <div style={{
+                          width: `${activity.data.progress_percentage}%`,
+                          height: '100%',
+                          backgroundColor: '#28a745',
+                          transition: 'width 0.3s ease'
+                        }} />
+                      </div>
                     </div>
                   )}
 

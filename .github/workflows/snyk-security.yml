@@ -196,15 +196,29 @@ jobs:
           # Deploy with better error handling
           echo "Deploying application to Kubernetes..."
           kubectl apply -f k8s/namespace.yaml
+
+          # Deploy database first and wait for it to be ready
+          echo "Deploying database..."
+          kubectl apply -f k8s/postgres-deployment.yaml
+          kubectl wait --for=condition=available --timeout=300s deployment/postgres-db -n bookshelf-mvp || {
+            echo "Database deployment failed"
+            kubectl logs deployment/postgres-db -n bookshelf-mvp
+            exit 1
+          }
+
+          # Verify database is actually ready to accept connections
+          echo "Verifying database connectivity..."
+          kubectl run postgres-test --image=postgres:13 --rm -i --restart=Never -n bookshelf-mvp \
+            --env="PGPASSWORD=${{ secrets.DB_PASSWORD }}" \
+            -- psql -h postgres-db -U bookshelf -d bookshelf -c "SELECT 1;" || {
+            echo "Database connectivity test failed"
+            kubectl logs deployment/postgres-db -n bookshelf-mvp
+            exit 1
+          }
+
+          # Deploy backend first and wait for it to be ready
+          echo "Deploying backend..."
           kubectl apply -f k8s/backend-deployment.yaml
-          kubectl apply -f k8s/frontend-deployment.yaml
-          kubectl apply -f k8s/ingress.yaml
-
-          echo "Checking deployment status..."
-          kubectl get pods -n bookshelf-mvp
-          kubectl get deployments -n bookshelf-mvp
-
-          echo "Waiting for deployments (extended timeout)..."
           kubectl wait --for=condition=available --timeout=600s deployment/bookshelf-backend -n bookshelf-mvp || {
             echo "Backend deployment failed, checking logs..."
             kubectl logs deployment/bookshelf-backend -n bookshelf-mvp
@@ -212,12 +226,66 @@ jobs:
             exit 1
           }
 
+          # Verify backend API is responding
+          echo "Verifying backend API health..."
+          kubectl run api-test --image=curlimages/curl --rm -i --restart=Never -n bookshelf-mvp -- curl -f http://bookshelf-backend:5000/health || {
+            echo "Backend health check failed"
+            kubectl logs deployment/bookshelf-backend -n bookshelf-mvp
+            exit 1
+          }
+
+          # Test database migrations have run successfully
+          echo "Verifying database schema..."
+          kubectl run db-schema-test --image=postgres:13 --rm -i --restart=Never -n bookshelf-mvp \
+            --env="PGPASSWORD=${{ secrets.DB_PASSWORD }}" \
+            -- psql -h postgres-db -U bookshelf -d bookshelf -c "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';" || {
+            echo "Database schema verification failed"
+            kubectl logs deployment/bookshelf-backend -n bookshelf-mvp
+            exit 1
+          }
+
+          # Deploy frontend and ingress
+          echo "Deploying frontend and ingress..."
+          kubectl apply -f k8s/frontend-deployment.yaml
+          kubectl apply -f k8s/ingress.yaml
+
           kubectl wait --for=condition=available --timeout=600s deployment/bookshelf-frontend -n bookshelf-mvp || {
             echo "Frontend deployment failed, checking logs..."
             kubectl logs deployment/bookshelf-frontend -n bookshelf-mvp
             kubectl describe deployment/bookshelf-frontend -n bookshelf-mvp
             exit 1
           }
+
+          echo "Checking final deployment status..."
+          kubectl get pods -n bookshelf-mvp
+          kubectl get deployments -n bookshelf-mvp
+          kubectl get services -n bookshelf-mvp
+          kubectl get ingress -n bookshelf-mvp
+
+          # Final integration test
+          echo "Running integration tests..."
+          sleep 30  # Allow ingress to fully configure
+
+          # Get external IP
+          EXTERNAL_IP=$(kubectl get service ingress-nginx-controller -n ingress-nginx -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "localhost")
+          echo "Testing application at: $EXTERNAL_IP"
+
+          # Test frontend is serving
+          kubectl run integration-test --image=curlimages/curl --rm -i --restart=Never -n bookshelf-mvp -- curl -f -s "http://$EXTERNAL_IP/" > /dev/null || {
+            echo "Frontend integration test failed"
+            kubectl describe ingress bookshelf-ingress -n bookshelf-mvp
+            exit 1
+          }
+
+          # Test API endpoint through ingress
+          kubectl run api-integration-test --image=curlimages/curl --rm -i --restart=Never -n bookshelf-mvp -- curl -f -s "http://$EXTERNAL_IP/api/books/public" > /dev/null || {
+            echo "API integration test failed"
+            kubectl logs deployment/bookshelf-backend -n bookshelf-mvp
+            exit 1
+          }
+
+          echo "✅ All deployment and integration tests passed successfully!"
+          echo "Application is available at: http://$EXTERNAL_IP"
 
   container-security-scan:
     runs-on: ubuntu-latest

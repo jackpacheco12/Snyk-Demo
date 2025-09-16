@@ -3,7 +3,21 @@ import axios from 'axios';
 
 const API_BASE = process.env.REACT_APP_API_URL || '';
 
-const BookStatusCard = ({ book, onStatusChange, onRatingChange }) => {
+const BookStatusCard = ({ book, onStatusChange, onRatingChange, onProgressUpdate }) => {
+  const [currentPageInput, setCurrentPageInput] = useState(book.current_page || 0);
+  const [totalPagesInput, setTotalPagesInput] = useState(book.total_pages || 0);
+
+  const progressPercentage = book.total_pages > 0 ? Math.round((book.current_page / book.total_pages) * 100) : 0;
+
+  const handleProgressUpdate = () => {
+    if (currentPageInput !== book.current_page || totalPagesInput !== book.total_pages) {
+      onProgressUpdate(book.id, {
+        current_page: parseInt(currentPageInput),
+        total_pages: parseInt(totalPagesInput)
+      });
+    }
+  };
+
   return (
     <div style={{
       border: '1px solid #ddd',
@@ -15,6 +29,89 @@ const BookStatusCard = ({ book, onStatusChange, onRatingChange }) => {
     }}>
       <h4 style={{ margin: '0 0 8px 0', color: '#333' }}>{book.title}</h4>
       <p style={{ margin: '0 0 8px 0', color: '#666', fontSize: '14px' }}>by {book.author}</p>
+
+      {/* Progress Bar for Currently Reading */}
+      {book.status === 'currently-reading' && book.total_pages > 0 && (
+        <div style={{ marginBottom: '12px' }}>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '4px',
+            fontSize: '12px',
+            color: '#666'
+          }}>
+            <span>Progress: {book.current_page || 0} / {book.total_pages} pages</span>
+            <span>{progressPercentage}%</span>
+          </div>
+          <div style={{
+            width: '100%',
+            height: '8px',
+            backgroundColor: '#e0e0e0',
+            borderRadius: '4px',
+            overflow: 'hidden'
+          }}>
+            <div style={{
+              width: `${progressPercentage}%`,
+              height: '100%',
+              backgroundColor: '#28a745',
+              transition: 'width 0.3s ease'
+            }} />
+          </div>
+        </div>
+      )}
+
+      {/* Progress Update Controls */}
+      {(book.status === 'currently-reading' || book.status === 'read') && (
+        <div style={{ marginBottom: '12px' }}>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
+            <input
+              type="number"
+              value={currentPageInput}
+              onChange={(e) => setCurrentPageInput(e.target.value)}
+              placeholder="Current page"
+              min="0"
+              max={totalPagesInput || 9999}
+              style={{
+                width: '80px',
+                padding: '4px',
+                border: '1px solid #ccc',
+                borderRadius: '4px',
+                fontSize: '12px'
+              }}
+            />
+            <span style={{ fontSize: '12px', color: '#666' }}>of</span>
+            <input
+              type="number"
+              value={totalPagesInput}
+              onChange={(e) => setTotalPagesInput(e.target.value)}
+              placeholder="Total pages"
+              min="0"
+              style={{
+                width: '80px',
+                padding: '4px',
+                border: '1px solid #ccc',
+                borderRadius: '4px',
+                fontSize: '12px'
+              }}
+            />
+            <button
+              onClick={handleProgressUpdate}
+              style={{
+                padding: '4px 8px',
+                backgroundColor: '#007bff',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                fontSize: '12px',
+                cursor: 'pointer'
+              }}
+            >
+              Update
+            </button>
+          </div>
+        </div>
+      )}
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px' }}>
         <select
@@ -56,7 +153,7 @@ const BookStatusCard = ({ book, onStatusChange, onRatingChange }) => {
   );
 };
 
-const CategorySection = ({ title, books, icon, onStatusChange, onRatingChange }) => {
+const CategorySection = ({ title, books, icon, onStatusChange, onRatingChange, onProgressUpdate }) => {
   return (
     <div style={{
       backgroundColor: 'white',
@@ -87,6 +184,7 @@ const CategorySection = ({ title, books, icon, onStatusChange, onRatingChange })
             book={book}
             onStatusChange={onStatusChange}
             onRatingChange={onRatingChange}
+            onProgressUpdate={onProgressUpdate}
           />
         ))
       )}
@@ -136,6 +234,15 @@ const CategorizedBookList = () => {
     }
   };
 
+  const updateBookProgress = async (bookId, progressData) => {
+    try {
+      await axios.put(`${API_BASE}/api/books/${bookId}`, progressData);
+      fetchCategorizedBooks();
+    } catch (error) {
+      console.error('Error updating book progress:', error);
+    }
+  };
+
   if (loading) {
     return (
       <div style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
@@ -152,6 +259,7 @@ const CategorizedBookList = () => {
         books={categorizedBooks['want-to-read']}
         onStatusChange={updateBookStatus}
         onRatingChange={updateBookRating}
+        onProgressUpdate={updateBookProgress}
       />
 
       <CategorySection
@@ -160,6 +268,7 @@ const CategorizedBookList = () => {
         books={categorizedBooks['currently-reading']}
         onStatusChange={updateBookStatus}
         onRatingChange={updateBookRating}
+        onProgressUpdate={updateBookProgress}
       />
 
       <CategorySection
@@ -168,6 +277,7 @@ const CategorizedBookList = () => {
         books={categorizedBooks['read']}
         onStatusChange={updateBookStatus}
         onRatingChange={updateBookRating}
+        onProgressUpdate={updateBookProgress}
       />
     </div>
   );

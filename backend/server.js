@@ -74,7 +74,7 @@ app.get('/api/books/by-status', auth, async (req, res) => {
 
 app.post('/api/books', auth, async (req, res) => {
   try {
-    const { title, author, rating, status } = req.body;
+    const { title, author, rating, status, total_pages, current_page } = req.body;
 
     if (!title || !author) {
       return res.status(400).json({ error: 'Title and author are required' });
@@ -84,8 +84,8 @@ app.post('/api/books', auth, async (req, res) => {
     const bookStatus = validStatuses.includes(status) ? status : 'want-to-read';
 
     const result = await pool.query(
-      'INSERT INTO books (title, author, rating, status, user_id) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-      [title, author, rating || 0, bookStatus, req.user.id]
+      'INSERT INTO books (title, author, rating, status, total_pages, current_page, user_id) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+      [title, author, rating || 0, bookStatus, total_pages || 0, current_page || 0, req.user.id]
     );
 
     const newBook = result.rows[0];
@@ -105,7 +105,7 @@ app.post('/api/books', auth, async (req, res) => {
 app.put('/api/books/:id', auth, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    const { rating, status } = req.body;
+    const { rating, status, total_pages, current_page } = req.body;
 
     // First, get the current book data
     const currentResult = await pool.query('SELECT * FROM books WHERE id = $1 AND user_id = $2', [id, req.user.id]);
@@ -117,6 +117,7 @@ app.put('/api/books/:id', auth, async (req, res) => {
     const currentBook = currentResult.rows[0];
     const oldRating = currentBook.rating;
     const oldStatus = currentBook.status;
+    const oldCurrentPage = currentBook.current_page || 0;
 
     // Build update query
     const updates = [];
@@ -136,6 +137,18 @@ app.put('/api/books/:id', auth, async (req, res) => {
         params.push(status);
         paramCount++;
       }
+    }
+
+    if (total_pages !== undefined) {
+      updates.push(`total_pages = $${paramCount}`);
+      params.push(total_pages);
+      paramCount++;
+    }
+
+    if (current_page !== undefined) {
+      updates.push(`current_page = $${paramCount}`);
+      params.push(current_page);
+      paramCount++;
     }
 
     if (updates.length === 0) {
@@ -167,6 +180,27 @@ app.put('/api/books/:id', auth, async (req, res) => {
         book: _.omit(updatedBook, 'user_id'),
         action: `started reading "${updatedBook.title}"`
       });
+    } else if (status !== oldStatus && status === 'want-to-read') {
+      await Social.addActivity(req.user.id, 'book_status_changed', {
+        book: _.omit(updatedBook, 'user_id'),
+        action: `wants to read "${updatedBook.title}"`
+      });
+    }
+
+    // Add activity for significant reading progress
+    if (current_page !== undefined && current_page !== oldCurrentPage) {
+      const pagesDifference = current_page - oldCurrentPage;
+      if (pagesDifference > 0 && pagesDifference >= 10) { // Only track if read at least 10 pages
+        const progressPercentage = updatedBook.total_pages > 0 ? Math.round((current_page / updatedBook.total_pages) * 100) : 0;
+        await Social.addActivity(req.user.id, 'reading_progress', {
+          book: _.omit(updatedBook, 'user_id'),
+          pages_read: pagesDifference,
+          current_page: current_page,
+          total_pages: updatedBook.total_pages,
+          progress_percentage: progressPercentage,
+          action: `read ${pagesDifference} pages of "${updatedBook.title}" (${progressPercentage}% complete)`
+        });
+      }
     }
 
     res.json(updatedBook);

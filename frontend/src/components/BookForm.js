@@ -5,6 +5,7 @@ const BookForm = ({ onSubmit }) => {
   const [author, setAuthor] = useState('');
   const [rating, setRating] = useState(0);
   const [status, setStatus] = useState('want-to-read');
+  const [totalPages, setTotalPages] = useState('');
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -13,12 +14,15 @@ const BookForm = ({ onSubmit }) => {
         title: title.trim(),
         author: author.trim(),
         rating,
-        status
+        status,
+        total_pages: totalPages ? parseInt(totalPages) : 0,
+        current_page: 0
       });
       setTitle('');
       setAuthor('');
       setRating(0);
       setStatus('want-to-read');
+      setTotalPages('');
     }
   };
 
@@ -91,6 +95,26 @@ const BookForm = ({ onSubmit }) => {
             <option value="currently-reading">📖 Currently Reading</option>
             <option value="read">✅ Read</option>
           </select>
+        </div>
+
+        <div style={{ marginBottom: '16px' }}>
+          <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>
+            Total Pages (optional)
+          </label>
+          <input
+            type="number"
+            value={totalPages}
+            onChange={(e) => setTotalPages(e.target.value)}
+            min="0"
+            style={{
+              width: '100%',
+              padding: '8px',
+              border: '1px solid #ccc',
+              borderRadius: '4px',
+              fontSize: '16px'
+            }}
+            placeholder="Enter total number of pages"
+          />
         </div>
 
         <div style={{ marginBottom: '16px' }}>
