@@ -15,7 +15,8 @@
     "jsonwebtoken": "8.5.1",
     "bcryptjs": "2.4.3",
     "express-validator": "6.6.0",
-    "pg": "^8.11.3"
+    "pg": "^8.11.3",
+    "axios": "^1.6.0"
   },
   "devDependencies": {
     "nodemon": "1.18.4"

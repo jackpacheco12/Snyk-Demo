@@ -5,6 +5,8 @@ const _ = require('lodash');
 const { auth } = require('./middleware/auth');
 const Social = require('./models/Social');
 const { pool, runMigrations } = require('./db/database');
+// Import Open Library service for book enrichment
+const openLibraryService = require('./services/openLibraryService');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -83,9 +85,26 @@ app.post('/api/books', auth, async (req, res) => {
     const validStatuses = ['want-to-read', 'currently-reading', 'read'];
     const bookStatus = validStatuses.includes(status) ? status : 'want-to-read';
 
+    // Fetch enrichment data from Open Library API
+    console.log(`Enriching book: ${title} by ${author}`);
+    const enrichmentData = await openLibraryService.enrichBook(title, author);
+
+    // Use enriched total_pages if user didn't provide it and API has data
+    const finalTotalPages = total_pages || enrichmentData.total_pages || 0;
+
     const result = await pool.query(
-      'INSERT INTO books (title, author, rating, status, total_pages, current_page, user_id) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
-      [title, author, rating || 0, bookStatus, total_pages || 0, current_page || 0, req.user.id]
+      'INSERT INTO books (title, author, rating, status, total_pages, current_page, cover_image_url, publication_year, user_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *',
+      [
+        title,
+        author,
+        rating || 0,
+        bookStatus,
+        finalTotalPages,
+        current_page || 0,
+        enrichmentData.cover_image_url,
+        enrichmentData.publication_year,
+        req.user.id
+      ]
     );
 
     const newBook = result.rows[0];
