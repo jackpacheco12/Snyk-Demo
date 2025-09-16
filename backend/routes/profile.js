@@ -59,8 +59,7 @@ router.get('/stats', auth, async (req, res) => {
     const stats = {
       totalBooksRead: actualBooksRead,
       favoriteGenre: user.favoriteGenre || 'Not specified',
-      memberSince: user.createdAt,
-      profileCompletion: calculateProfileCompletion(user, actualBooksRead)
+      memberSince: user.createdAt
     };
 
     res.json(stats);
@@ -69,22 +68,5 @@ router.get('/stats', auth, async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch profile stats' });
   }
 });
-
-function calculateProfileCompletion(user, actualBooksRead = 0) {
-  let completion = 0;
-  const fields = ['name', 'bio', 'favoriteGenre'];
-
-  fields.forEach(field => {
-    if (user[field] && user[field].trim() !== '') {
-      completion += 25;
-    }
-  });
-
-  if (actualBooksRead > 0) {
-    completion += 25;
-  }
-
-  return Math.round(completion);
-}
 
 module.exports = router;

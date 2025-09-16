@@ -231,10 +231,7 @@ const Profile = () => {
                 <h3 style={{ marginTop: 0, color: '#555' }}>Reading Stats</h3>
                 <p><strong>Favorite Genre:</strong> {user.favoriteGenre || 'Not specified'}</p>
                 {stats && (
-                  <>
-                    <p><strong>Books Read:</strong> {stats.totalBooksRead}</p>
-                    <p><strong>Profile Completion:</strong> {stats.profileCompletion}%</p>
-                  </>
+                  <p><strong>Books Read:</strong> {stats.totalBooksRead}</p>
                 )}
               </div>
             </div>
@@ -258,10 +255,6 @@ const Profile = () => {
             <div style={{ textAlign: 'center', padding: '16px', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
               <h3 style={{ margin: '0 0 8px 0', color: '#28a745' }}>{stats.favoriteGenre}</h3>
               <p style={{ margin: 0 }}>Favorite Genre</p>
-            </div>
-            <div style={{ textAlign: 'center', padding: '16px', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
-              <h3 style={{ margin: '0 0 8px 0', color: '#ffc107' }}>{stats.profileCompletion}%</h3>
-              <p style={{ margin: 0 }}>Profile Complete</p>
             </div>
           </div>
         </div>
