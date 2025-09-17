@@ -36,7 +36,7 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
         with:
-          args: --file=frontend/package.json --severity-threshold=critical --sarif-file-output=frontend-deps.sarif
+          args: --file=frontend/package.json --severity-threshold=high --sarif-file-output=frontend-deps.sarif
 
       - name: Upload frontend security report
         uses: github/codeql-action/upload-sarif@v3

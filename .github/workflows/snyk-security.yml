@@ -138,6 +138,25 @@ jobs:
         working-directory: ./backend
 
       # ================================
+      # Snyk Monitor for Ongoing Monitoring
+      # ================================
+      - name: Snyk monitor frontend dependencies
+        uses: snyk/actions/node@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
+        with:
+          command: monitor
+          args: --file=frontend/package.json
+
+      - name: Snyk monitor backend dependencies
+        uses: snyk/actions/node@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
+        with:
+          command: monitor
+          args: --file=backend/package.json
+
+      # ================================
       # GCP Authentication & Setup
       # ================================
       - name: Authenticate to Google Cloud

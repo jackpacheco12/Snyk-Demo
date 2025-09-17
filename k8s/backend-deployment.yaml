@@ -36,6 +36,8 @@ spec:
             secretKeyRef:
               name: db-secret
               key: password
+        - name: JWT_SECRET
+          value: "demo-jwt-secret-key-for-bookshelf-app"
         resources:
           requests:
             memory: "128Mi"
