@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: frontend
-        image: bookshelf-frontend:latest
+        image: us-central1-docker.pkg.dev/jack-snyk-demo/bookshelf-mvp/bookshelf-frontend:latest
         ports:
         - containerPort: 80
         resources:

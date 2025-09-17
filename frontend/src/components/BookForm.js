@@ -5,6 +5,7 @@ const BookForm = ({ onSubmit }) => {
   const [author, setAuthor] = useState('');
   const [rating, setRating] = useState(0);
   const [status, setStatus] = useState('want-to-read');
+  const [currentPage, setCurrentPage] = useState('');
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -13,12 +14,14 @@ const BookForm = ({ onSubmit }) => {
         title: title.trim(),
         author: author.trim(),
         rating,
-        status
+        status,
+        current_page: currentPage ? parseInt(currentPage) : 0
       });
       setTitle('');
       setAuthor('');
       setRating(0);
       setStatus('want-to-read');
+      setCurrentPage('');
     }
   };
 
@@ -30,7 +33,7 @@ const BookForm = ({ onSubmit }) => {
       marginBottom: '24px',
       backgroundColor: '#f8f9fa'
     }}>
-      <h2>Add New Book</h2>
+      <h2>Add New Book (Auto-Enriched)</h2>
       <form onSubmit={handleSubmit}>
         <div style={{ marginBottom: '16px' }}>
           <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>
@@ -91,6 +94,26 @@ const BookForm = ({ onSubmit }) => {
             <option value="currently-reading">📖 Currently Reading</option>
             <option value="read">✅ Read</option>
           </select>
+        </div>
+
+        <div style={{ marginBottom: '16px' }}>
+          <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>
+            Current Page (optional)
+          </label>
+          <input
+            type="number"
+            value={currentPage}
+            onChange={(e) => setCurrentPage(e.target.value)}
+            min="0"
+            style={{
+              width: '100%',
+              padding: '8px',
+              border: '1px solid #ccc',
+              borderRadius: '4px',
+              fontSize: '16px'
+            }}
+            placeholder="Enter page you're currently on"
+          />
         </div>
 
         <div style={{ marginBottom: '16px' }}>

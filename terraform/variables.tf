@@ -32,3 +32,9 @@ variable "node_count" {
   type        = number
   default     = 1
 }
+
+variable "db_password" {
+  description = "Database password for the bookshelf user"
+  type        = string
+  sensitive   = true
+}

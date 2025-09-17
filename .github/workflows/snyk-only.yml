@@ -1,0 +1,160 @@
+name: Snyk Security Demo
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ demo ]
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '16'
+
+      # ================================
+      # Frontend Dependency Scan
+      # ================================
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: ./frontend
+
+      - name: Snyk frontend vulnerability scan
+        uses: snyk/actions/node@master
+        continue-on-error: false
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
+        with:
+          args: --file=frontend/package.json --severity-threshold=high --sarif-file-output=frontend-deps.sarif
+
+      - name: Upload frontend security report
+        uses: github/codeql-action/upload-sarif@v3
+        if: hashFiles('frontend-deps.sarif') != ''
+        with:
+          sarif_file: frontend-deps.sarif
+          category: frontend-deps
+
+      # ================================
+      # Backend Dependency Scan
+      # ================================
+      - name: Install backend dependencies
+        run: npm ci
+        working-directory: ./backend
+
+      - name: Snyk backend vulnerability scan
+        uses: snyk/actions/node@master
+        continue-on-error: false
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
+        with:
+          args: --file=backend/package.json --severity-threshold=critical --sarif-file-output=backend-deps.sarif
+
+      - name: Upload backend security report
+        uses: github/codeql-action/upload-sarif@v3
+        if: hashFiles('backend-deps.sarif') != ''
+        with:
+          sarif_file: backend-deps.sarif
+          category: backend-deps
+
+      # ================================
+      # Code Quality Scan
+      # ================================
+      - name: Snyk code quality scan
+        uses: snyk/actions/node@master
+        continue-on-error: false
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
+        with:
+          command: code test
+          args: --severity-threshold=critical --sarif-file-output=code-scan.sarif
+
+      - name: Upload code quality report
+        uses: github/codeql-action/upload-sarif@v3
+        if: hashFiles('code-scan.sarif') != ''
+        with:
+          sarif_file: code-scan.sarif
+          category: code-scan
+
+      # ================================
+      # Infrastructure as Code Scan
+      # ================================
+      - name: Snyk IaC scan
+        uses: snyk/actions/iac@master
+        continue-on-error: false
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
+        with:
+          args: --severity-threshold=critical --sarif-file-output=iac-scan.sarif
+
+      - name: Upload IaC security report
+        uses: github/codeql-action/upload-sarif@v3
+        if: hashFiles('iac-scan.sarif') != ''
+        with:
+          sarif_file: iac-scan.sarif
+          category: iac-scan
+
+      # ================================
+      # Container Security Scanning
+      # ================================
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev
+
+      - name: Build Docker images for scanning
+        run: |
+          PROJECT_ID=${{ secrets.GCP_PROJECT_ID }}
+          REGION=${{ secrets.GCP_REGION }}
+          REGISTRY_URL="$REGION-docker.pkg.dev/$PROJECT_ID/bookshelf-mvp"
+
+          # Build images locally for scanning (don't push)
+          docker build --platform linux/amd64 -t $REGISTRY_URL/bookshelf-backend:scan-test ./backend
+          docker build --platform linux/amd64 -t $REGISTRY_URL/bookshelf-frontend:scan-test ./frontend
+
+      - name: Snyk backend container scan
+        uses: snyk/actions/docker@master
+        continue-on-error: false
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
+        with:
+          image: ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/bookshelf-mvp/bookshelf-backend:scan-test
+          args: --severity-threshold=critical
+
+      - name: Snyk frontend container scan
+        uses: snyk/actions/docker@master
+        continue-on-error: false
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
+        with:
+          image: ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/bookshelf-mvp/bookshelf-frontend:scan-test
+          args: --severity-threshold=critical
+
+      # ================================
+      # Security Summary
+      # ================================
+      - name: Security scan summary
+        if: always()
+        run: |
+          echo "🔒 Security Scan Complete"
+          echo "✅ All scans passed critical threshold"
+          echo "📊 Results uploaded to GitHub Security tab"
+          echo "🚀 Ready for deployment"

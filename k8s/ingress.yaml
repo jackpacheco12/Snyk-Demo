@@ -4,13 +4,11 @@ metadata:
   name: bookshelf-ingress
   namespace: bookshelf-mvp
   annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
     nginx.ingress.kubernetes.io/ssl-redirect: "false"
 spec:
   ingressClassName: nginx
   rules:
-  - host: bookshelf-mvp.local
-    http:
+  - http:
       paths:
       - path: /
         pathType: Prefix

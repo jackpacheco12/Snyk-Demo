@@ -1,19 +1,17 @@
 const _ = require('lodash');
 const bcrypt = require('bcryptjs');
-
-let users = [];
-let nextUserId = 1;
+const { pool } = require('../db/database');
 
 class User {
   constructor(userData) {
-    this.id = nextUserId++;
+    this.id = userData.id;
     this.email = userData.email;
     this.password = userData.password;
     this.name = userData.name || '';
     this.bio = userData.bio || '';
-    this.favoriteGenre = userData.favoriteGenre || '';
-    this.booksRead = userData.booksRead || 0;
-    this.createdAt = new Date();
+    this.favoriteGenre = userData.favorite_genre || userData.favoriteGenre || '';
+    this.booksRead = userData.books_read || userData.booksRead || 0;
+    this.createdAt = userData.created_at || userData.createdAt;
   }
 
   static async hashPassword(password) {
@@ -24,38 +22,76 @@ class User {
     return await bcrypt.compare(password, hashedPassword);
   }
 
-  static findByEmail(email) {
-    return _.find(users, { email });
+  static async findByEmail(email) {
+    try {
+      const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+      return result.rows[0] ? new User(result.rows[0]) : null;
+    } catch (error) {
+      throw error;
+    }
   }
 
-  static findById(id) {
-    return _.find(users, { id: parseInt(id) });
+  static async findById(id) {
+    try {
+      const result = await pool.query('SELECT * FROM users WHERE id = $1', [parseInt(id)]);
+      return result.rows[0] ? new User(result.rows[0]) : null;
+    } catch (error) {
+      throw error;
+    }
   }
 
   static async create(userData) {
-    const hashedPassword = await User.hashPassword(userData.password);
-    const user = new User({
-      ...userData,
-      password: hashedPassword
-    });
-    users.push(user);
-    return user;
+    try {
+      const hashedPassword = await User.hashPassword(userData.password);
+      const result = await pool.query(
+        'INSERT INTO users (email, password, name, bio, favorite_genre, books_read) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+        [userData.email, hashedPassword, userData.name, userData.bio || '', userData.favoriteGenre || '', userData.booksRead || 0]
+      );
+      return new User(result.rows[0]);
+    } catch (error) {
+      throw error;
+    }
   }
 
-  static updateById(id, updateData) {
-    const userIndex = _.findIndex(users, { id: parseInt(id) });
-    if (userIndex === -1) return null;
+  static async updateById(id, updateData) {
+    try {
+      const setClause = [];
+      const values = [];
+      let paramCount = 1;
 
-    users[userIndex] = { ...users[userIndex], ...updateData };
-    return users[userIndex];
+      Object.keys(updateData).forEach(key => {
+        const dbKey = key === 'favoriteGenre' ? 'favorite_genre' : (key === 'booksRead' ? 'books_read' : key);
+        setClause.push(`${dbKey} = $${paramCount}`);
+        values.push(updateData[key]);
+        paramCount++;
+      });
+
+      values.push(parseInt(id));
+      const query = `UPDATE users SET ${setClause.join(', ')} WHERE id = $${paramCount} RETURNING *`;
+      const result = await pool.query(query, values);
+
+      return result.rows[0] ? new User(result.rows[0]) : null;
+    } catch (error) {
+      throw error;
+    }
   }
 
-  static getAllUsers() {
-    return users;
+  static async getAllUsers() {
+    try {
+      const result = await pool.query('SELECT * FROM users ORDER BY created_at DESC');
+      return result.rows.map(row => new User(row));
+    } catch (error) {
+      throw error;
+    }
   }
 
-  static getUserCount() {
-    return users.length;
+  static async getUserCount() {
+    try {
+      const result = await pool.query('SELECT COUNT(*) FROM users');
+      return parseInt(result.rows[0].count);
+    } catch (error) {
+      throw error;
+    }
   }
 
   toJSON() {

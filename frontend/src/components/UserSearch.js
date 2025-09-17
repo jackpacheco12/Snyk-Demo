@@ -7,7 +7,7 @@ const UserSearch = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5001';
+  const API_BASE = process.env.REACT_APP_API_URL || '';
 
   const searchUsers = async (query = '') => {
     try {

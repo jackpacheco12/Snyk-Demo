@@ -17,7 +17,7 @@ router.post('/register', [
 
     const { email, password, name } = req.body;
 
-    const existingUser = User.findByEmail(email);
+    const existingUser = await User.findByEmail(email);
     if (existingUser) {
       return res.status(400).json({ error: 'User already exists with this email' });
     }
@@ -31,6 +31,7 @@ router.post('/register', [
       user: user.toJSON()
     });
   } catch (error) {
+    console.error('Registration error:', error);
     res.status(500).json({ error: 'Server error during registration' });
   }
 });
@@ -47,7 +48,7 @@ router.post('/login', [
 
     const { email, password } = req.body;
 
-    const user = User.findByEmail(email);
+    const user = await User.findByEmail(email);
     if (!user) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }

@@ -10,14 +10,13 @@ const Profile = () => {
   const [formData, setFormData] = useState({
     name: user?.name || '',
     bio: user?.bio || '',
-    favoriteGenre: user?.favoriteGenre || '',
-    booksRead: user?.booksRead || 0
+    favoriteGenre: user?.favoriteGenre || ''
   });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5001';
+  const API_BASE = process.env.REACT_APP_API_URL || '';
 
   useEffect(() => {
     fetchStats();
@@ -28,8 +27,7 @@ const Profile = () => {
       setFormData({
         name: user.name || '',
         bio: user.bio || '',
-        favoriteGenre: user.favoriteGenre || '',
-        booksRead: user.booksRead || 0
+        favoriteGenre: user.favoriteGenre || ''
       });
     }
   }, [user]);
@@ -201,25 +199,6 @@ const Profile = () => {
               </select>
             </div>
 
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>
-                Books Read This Year
-              </label>
-              <input
-                type="number"
-                name="booksRead"
-                value={formData.booksRead}
-                onChange={handleChange}
-                min="0"
-                style={{
-                  width: '100%',
-                  padding: '8px',
-                  border: '1px solid #ccc',
-                  borderRadius: '4px',
-                  fontSize: '16px'
-                }}
-              />
-            </div>
 
             <button
               type="submit"
@@ -251,9 +230,8 @@ const Profile = () => {
               <div>
                 <h3 style={{ marginTop: 0, color: '#555' }}>Reading Stats</h3>
                 <p><strong>Favorite Genre:</strong> {user.favoriteGenre || 'Not specified'}</p>
-                <p><strong>Books Read:</strong> {user.booksRead || 0}</p>
                 {stats && (
-                  <p><strong>Profile Completion:</strong> {stats.profileCompletion}%</p>
+                  <p><strong>Books Read:</strong> {stats.totalBooksRead}</p>
                 )}
               </div>
             </div>
@@ -277,10 +255,6 @@ const Profile = () => {
             <div style={{ textAlign: 'center', padding: '16px', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
               <h3 style={{ margin: '0 0 8px 0', color: '#28a745' }}>{stats.favoriteGenre}</h3>
               <p style={{ margin: 0 }}>Favorite Genre</p>
-            </div>
-            <div style={{ textAlign: 'center', padding: '16px', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
-              <h3 style={{ margin: '0 0 8px 0', color: '#ffc107' }}>{stats.profileCompletion}%</h3>
-              <p style={{ margin: 0 }}>Profile Complete</p>
             </div>
           </div>
         </div>

@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: backend
-        image: bookshelf-backend:latest
+        image: us-central1-docker.pkg.dev/jack-snyk-demo/bookshelf-mvp/bookshelf-backend:http-images
         ports:
         - containerPort: 5000
         env:
@@ -25,6 +25,19 @@ spec:
           value: "production"
         - name: PORT
           value: "5000"
+        - name: DB_HOST
+          value: "postgres-db"
+        - name: DB_NAME
+          value: "bookshelf"
+        - name: DB_USER
+          value: "bookshelf"
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: db-secret
+              key: password
+        - name: JWT_SECRET
+          value: "demo-jwt-secret-key-for-bookshelf-app"
         resources:
           requests:
             memory: "128Mi"

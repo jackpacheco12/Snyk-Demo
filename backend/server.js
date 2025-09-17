@@ -4,6 +4,9 @@ const bodyParser = require('body-parser');
 const _ = require('lodash');
 const { auth } = require('./middleware/auth');
 const Social = require('./models/Social');
+const { pool, runMigrations } = require('./db/database');
+// Import Open Library service for book enrichment
+const openLibraryService = require('./services/openLibraryService');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -11,168 +14,297 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(bodyParser.json());
 
-let books = [
-  { id: 1, title: "The Great Gatsby", author: "F. Scott Fitzgerald", rating: 4, userId: 1, addedAt: new Date(), status: 'read' },
-  { id: 2, title: "To Kill a Mockingbird", author: "Harper Lee", rating: 5, userId: 1, addedAt: new Date(), status: 'read' },
-  { id: 3, title: "1984", author: "George Orwell", rating: 5, userId: 1, addedAt: new Date(), status: 'read' }
-];
-
-let nextId = 4;
+// Initialize database
+const initializeDatabase = async () => {
+  try {
+    await runMigrations();
+  } catch (error) {
+    console.error('Failed to initialize database:', error);
+    process.exit(1);
+  }
+};
 
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/profile', require('./routes/profile'));
 app.use('/api/social', require('./routes/social'));
 
-app.get('/api/books', auth, (req, res) => {
-  const { search, status } = req.query;
-  let result = _.filter(books, { userId: req.user.id });
+app.get('/api/books', auth, async (req, res) => {
+  try {
+    const { search, status } = req.query;
+    let query = 'SELECT * FROM books WHERE user_id = $1';
+    let params = [req.user.id];
+    let paramCount = 2;
 
-  if (status) {
-    result = _.filter(result, { status });
-  }
-
-  if (search) {
-    result = _.filter(result, book =>
-      _.includes(_.toLower(book.title), _.toLower(search)) ||
-      _.includes(_.toLower(book.author), _.toLower(search))
-    );
-  }
-
-  res.json(result);
-});
-
-app.get('/api/books/by-status', auth, (req, res) => {
-  const userBooks = _.filter(books, { userId: req.user.id });
-
-  const categorizedBooks = {
-    'want-to-read': _.filter(userBooks, { status: 'want-to-read' }),
-    'currently-reading': _.filter(userBooks, { status: 'currently-reading' }),
-    'read': _.filter(userBooks, { status: 'read' })
-  };
-
-  res.json(categorizedBooks);
-});
-
-app.post('/api/books', auth, (req, res) => {
-  const { title, author, rating, status } = req.body;
-
-  if (!title || !author) {
-    return res.status(400).json({ error: 'Title and author are required' });
-  }
-
-  const validStatuses = ['want-to-read', 'currently-reading', 'read'];
-  const bookStatus = validStatuses.includes(status) ? status : 'want-to-read';
-
-  const newBook = {
-    id: nextId++,
-    title,
-    author,
-    rating: rating || 0,
-    status: bookStatus,
-    userId: req.user.id,
-    addedAt: new Date()
-  };
-
-  books.push(newBook);
-
-  Social.addActivity(req.user.id, 'book_added', {
-    book: _.omit(newBook, 'userId'),
-    action: 'added a new book'
-  });
-
-  res.status(201).json(newBook);
-});
-
-app.put('/api/books/:id', auth, (req, res) => {
-  const id = parseInt(req.params.id);
-  const { rating, status } = req.body;
-
-  const book = _.find(books, { id, userId: req.user.id });
-
-  if (!book) {
-    return res.status(404).json({ error: 'Book not found' });
-  }
-
-  const oldRating = book.rating;
-  const oldStatus = book.status;
-
-  if (rating !== undefined) {
-    book.rating = rating;
-  }
-
-  if (status !== undefined) {
-    const validStatuses = ['want-to-read', 'currently-reading', 'read'];
-    if (validStatuses.includes(status)) {
-      book.status = status;
+    if (status) {
+      query += ` AND status = $${paramCount}`;
+      params.push(status);
+      paramCount++;
     }
-  }
 
-  if (rating !== oldRating && rating >= 4) {
-    Social.addActivity(req.user.id, 'book_rated', {
-      book: _.omit(book, 'userId'),
-      rating: rating,
-      action: `rated "${book.title}" ${rating} stars`
-    });
-  }
+    if (search) {
+      query += ` AND (LOWER(title) LIKE LOWER($${paramCount}) OR LOWER(author) LIKE LOWER($${paramCount + 1}))`;
+      params.push(`%${search}%`, `%${search}%`);
+    }
 
-  if (status !== oldStatus && status === 'read') {
-    Social.addActivity(req.user.id, 'book_finished', {
-      book: _.omit(book, 'userId'),
-      action: `finished reading "${book.title}"`
-    });
-  } else if (status !== oldStatus && status === 'currently-reading') {
-    Social.addActivity(req.user.id, 'book_started', {
-      book: _.omit(book, 'userId'),
-      action: `started reading "${book.title}"`
-    });
-  }
+    query += ' ORDER BY added_at DESC';
 
-  res.json(book);
+    const result = await pool.query(query, params);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching books:', error);
+    res.status(500).json({ error: 'Failed to fetch books' });
+  }
 });
 
-app.delete('/api/books/:id', auth, (req, res) => {
-  const id = parseInt(req.params.id);
-  const index = _.findIndex(books, { id, userId: req.user.id });
+app.get('/api/books/by-status', auth, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM books WHERE user_id = $1 ORDER BY added_at DESC', [req.user.id]);
+    const userBooks = result.rows;
 
-  if (index === -1) {
-    return res.status(404).json({ error: 'Book not found' });
+    const categorizedBooks = {
+      'want-to-read': userBooks.filter(book => book.status === 'want-to-read'),
+      'currently-reading': userBooks.filter(book => book.status === 'currently-reading'),
+      'read': userBooks.filter(book => book.status === 'read')
+    };
+
+    res.json(categorizedBooks);
+  } catch (error) {
+    console.error('Error fetching books by status:', error);
+    res.status(500).json({ error: 'Failed to fetch books' });
   }
-
-  books.splice(index, 1);
-  res.status(204).send();
 });
 
-app.get('/api/books/public', (req, res) => {
-  const { search } = req.query;
-  let result = books;
+app.post('/api/books', auth, async (req, res) => {
+  try {
+    const { title, author, rating, status, total_pages, current_page } = req.body;
 
-  if (search) {
-    result = _.filter(books, book =>
-      _.includes(_.toLower(book.title), _.toLower(search)) ||
-      _.includes(_.toLower(book.author), _.toLower(search))
+    if (!title || !author) {
+      return res.status(400).json({ error: 'Title and author are required' });
+    }
+
+    const validStatuses = ['want-to-read', 'currently-reading', 'read'];
+    const bookStatus = validStatuses.includes(status) ? status : 'want-to-read';
+
+    // Fetch enrichment data from Open Library API
+    console.log(`Enriching book: ${title} by ${author}`);
+    const enrichmentData = await openLibraryService.enrichBook(title, author);
+
+    // Always use API total_pages if available, fallback to user input, then 0
+    const finalTotalPages = enrichmentData.total_pages || total_pages || 0;
+
+    const result = await pool.query(
+      'INSERT INTO books (title, author, rating, status, total_pages, current_page, cover_image_url, publication_year, user_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *',
+      [
+        title,
+        author,
+        rating || 0,
+        bookStatus,
+        finalTotalPages,
+        current_page || 0,
+        enrichmentData.cover_image_url,
+        enrichmentData.publication_year,
+        req.user.id
+      ]
     );
+
+    const newBook = result.rows[0];
+
+    await Social.addActivity(req.user.id, 'book_added', {
+      book: _.omit(newBook, 'user_id'),
+      action: 'added a new book'
+    });
+
+    res.status(201).json(newBook);
+  } catch (error) {
+    console.error('Error adding book:', error);
+    res.status(500).json({ error: 'Failed to add book' });
   }
-
-  res.json(_.map(result, book => _.omit(book, 'userId')));
 });
 
-app.get('/api/users/:userId/books', auth, (req, res) => {
-  const userId = parseInt(req.params.userId);
-  const { search } = req.query;
+app.put('/api/books/:id', auth, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { rating, status, total_pages, current_page } = req.body;
 
-  let result = _.filter(books, { userId });
+    // First, get the current book data
+    const currentResult = await pool.query('SELECT * FROM books WHERE id = $1 AND user_id = $2', [id, req.user.id]);
 
-  if (search) {
-    result = _.filter(result, book =>
-      _.includes(_.toLower(book.title), _.toLower(search)) ||
-      _.includes(_.toLower(book.author), _.toLower(search))
-    );
+    if (currentResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Book not found' });
+    }
+
+    const currentBook = currentResult.rows[0];
+    const oldRating = currentBook.rating;
+    const oldStatus = currentBook.status;
+    const oldCurrentPage = currentBook.current_page || 0;
+
+    // Build update query
+    const updates = [];
+    const params = [];
+    let paramCount = 1;
+
+    if (rating !== undefined) {
+      updates.push(`rating = $${paramCount}`);
+      params.push(rating);
+      paramCount++;
+    }
+
+    if (status !== undefined) {
+      const validStatuses = ['want-to-read', 'currently-reading', 'read'];
+      if (validStatuses.includes(status)) {
+        updates.push(`status = $${paramCount}`);
+        params.push(status);
+        paramCount++;
+      }
+    }
+
+    if (total_pages !== undefined) {
+      updates.push(`total_pages = $${paramCount}`);
+      params.push(total_pages);
+      paramCount++;
+    }
+
+    if (current_page !== undefined) {
+      updates.push(`current_page = $${paramCount}`);
+      params.push(current_page);
+      paramCount++;
+    }
+
+    if (updates.length === 0) {
+      return res.json(currentBook);
+    }
+
+    params.push(id, req.user.id);
+    const updateQuery = `UPDATE books SET ${updates.join(', ')} WHERE id = $${paramCount} AND user_id = $${paramCount + 1} RETURNING *`;
+
+    const result = await pool.query(updateQuery, params);
+    const updatedBook = result.rows[0];
+
+    // Add activities for significant changes
+    if (rating !== oldRating && rating >= 4) {
+      await Social.addActivity(req.user.id, 'book_rated', {
+        book: _.omit(updatedBook, 'user_id'),
+        rating: rating,
+        action: `rated "${updatedBook.title}" ${rating} stars`
+      });
+    }
+
+    if (status !== oldStatus && status === 'read') {
+      await Social.addActivity(req.user.id, 'book_finished', {
+        book: _.omit(updatedBook, 'user_id'),
+        action: `finished reading "${updatedBook.title}"`
+      });
+    } else if (status !== oldStatus && status === 'currently-reading') {
+      await Social.addActivity(req.user.id, 'book_started', {
+        book: _.omit(updatedBook, 'user_id'),
+        action: `started reading "${updatedBook.title}"`
+      });
+    } else if (status !== oldStatus && status === 'want-to-read') {
+      await Social.addActivity(req.user.id, 'book_status_changed', {
+        book: _.omit(updatedBook, 'user_id'),
+        action: `wants to read "${updatedBook.title}"`
+      });
+    }
+
+    // Add activity for significant reading progress
+    if (current_page !== undefined && current_page !== oldCurrentPage) {
+      const pagesDifference = current_page - oldCurrentPage;
+      if (pagesDifference > 0 && pagesDifference >= 10) { // Only track if read at least 10 pages
+        const progressPercentage = updatedBook.total_pages > 0 ? Math.round((current_page / updatedBook.total_pages) * 100) : 0;
+        await Social.addActivity(req.user.id, 'reading_progress', {
+          book: _.omit(updatedBook, 'user_id'),
+          pages_read: pagesDifference,
+          current_page: current_page,
+          total_pages: updatedBook.total_pages,
+          progress_percentage: progressPercentage,
+          action: `read ${pagesDifference} pages of "${updatedBook.title}" (${progressPercentage}% complete)`
+        });
+      }
+    }
+
+    res.json(updatedBook);
+  } catch (error) {
+    console.error('Error updating book:', error);
+    res.status(500).json({ error: 'Failed to update book' });
   }
-
-  const publicBooks = _.map(result, book => _.omit(book, 'userId'));
-  res.json(publicBooks);
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+app.delete('/api/books/:id', auth, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const result = await pool.query('DELETE FROM books WHERE id = $1 AND user_id = $2 RETURNING *', [id, req.user.id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Book not found' });
+    }
+
+    res.status(204).send();
+  } catch (error) {
+    console.error('Error deleting book:', error);
+    res.status(500).json({ error: 'Failed to delete book' });
+  }
 });
+
+app.get('/api/books/public', async (req, res) => {
+  try {
+    const { search } = req.query;
+    let query = 'SELECT * FROM books';
+    let params = [];
+
+    if (search) {
+      query += ' WHERE LOWER(title) LIKE LOWER($1) OR LOWER(author) LIKE LOWER($2)';
+      params = [`%${search}%`, `%${search}%`];
+    }
+
+    query += ' ORDER BY added_at DESC LIMIT 100';
+
+    const result = await pool.query(query, params);
+    res.json(result.rows.map(book => _.omit(book, 'user_id')));
+  } catch (error) {
+    console.error('Error fetching public books:', error);
+    res.status(500).json({ error: 'Failed to fetch books' });
+  }
+});
+
+app.get('/api/users/:userId/books', auth, async (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId);
+    const { search } = req.query;
+
+    let query = 'SELECT * FROM books WHERE user_id = $1';
+    let params = [userId];
+
+    if (search) {
+      query += ' AND (LOWER(title) LIKE LOWER($2) OR LOWER(author) LIKE LOWER($3))';
+      params.push(`%${search}%`, `%${search}%`);
+    }
+
+    query += ' ORDER BY added_at DESC';
+
+    const result = await pool.query(query, params);
+    const publicBooks = result.rows.map(book => _.omit(book, 'user_id'));
+    res.json(publicBooks);
+  } catch (error) {
+    console.error('Error fetching user books:', error);
+    res.status(500).json({ error: 'Failed to fetch user books' });
+  }
+});
+
+// Health check endpoint for Kubernetes
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  });
+});
+
+const startServer = async () => {
+  await initializeDatabase();
+
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+};
+
+startServer().catch(console.error);

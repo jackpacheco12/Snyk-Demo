@@ -2,13 +2,14 @@ name: Security Scan & Deploy
 
 on:
   push:
-    branches: [ main, master, production ]
+    branches: [ main, master, demo ]
   pull_request:
-    branches: [ main, master, production ]
+    branches: [ main, master, demo ]
 
 jobs:
   security-scan:
     runs-on: ubuntu-latest
+    if: true  # Security scanning enabled for testing
     permissions:
       security-events: write
       actions: read
@@ -36,14 +37,14 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
         with:
-          args: --file=frontend/package.json --sarif-file-output=snyk-frontend.sarif
+          args: --file=frontend/package.json --sarif-file-output=frontend-deps.sarif
 
       - name: Upload frontend security report
         uses: github/codeql-action/upload-sarif@v3
-        if: hashFiles('snyk-frontend.sarif') != ''
+        if: hashFiles('frontend-deps.sarif') != ''
         with:
-          sarif_file: snyk-frontend.sarif
-          category: snyk-frontend
+          sarif_file: frontend-deps.sarif
+          category: frontend-deps
 
       # ================================
       # Backend Security Scanning
@@ -58,14 +59,14 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
         with:
-          args: --file=backend/package.json --sarif-file-output=snyk-backend.sarif
+          args: --file=backend/package.json --sarif-file-output=backend-deps.sarif
 
       - name: Upload backend security report
         uses: github/codeql-action/upload-sarif@v3
-        if: hashFiles('snyk-backend.sarif') != ''
+        if: hashFiles('backend-deps.sarif') != ''
         with:
-          sarif_file: snyk-backend.sarif
-          category: snyk-backend
+          sarif_file: backend-deps.sarif
+          category: backend-deps
 
       # ================================
       # Code Quality Scan
@@ -77,14 +78,14 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
         with:
           command: code test
-          args: --sarif-file-output=snyk-code.sarif
+          args: --sarif-file-output=code-scan.sarif
 
       - name: Upload code quality report
         uses: github/codeql-action/upload-sarif@v3
-        if: hashFiles('snyk-code.sarif') != ''
+        if: hashFiles('code-scan.sarif') != ''
         with:
-          sarif_file: snyk-code.sarif
-          category: snyk-code
+          sarif_file: code-scan.sarif
+          category: code-scan
 
       # ================================
       # Infrastructure as Code Scan
@@ -95,59 +96,19 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
         with:
-          args: --sarif-file-output=snyk-iac.sarif
+          args: --sarif-file-output=iac-scan.sarif
 
       - name: Upload IaC security report
         uses: github/codeql-action/upload-sarif@v3
-        if: hashFiles('snyk-iac.sarif') != ''
+        if: hashFiles('iac-scan.sarif') != ''
         with:
-          sarif_file: snyk-iac.sarif
-          category: snyk-iac
-
-      # ================================
-      # Container Security Scan
-      # ================================
-      - name: Build Docker images for scanning
-        run: |
-          docker build -t bookshelf-backend:scan ./backend
-          docker build -t bookshelf-frontend:scan ./frontend
-
-      - name: Snyk container scan - Backend
-        uses: snyk/actions/docker@master
-        continue-on-error: true
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
-        with:
-          image: bookshelf-backend:scan
-          args: --sarif-file-output=snyk-container-backend.sarif
-
-      - name: Upload backend container security report
-        uses: github/codeql-action/upload-sarif@v3
-        if: hashFiles('snyk-container-backend.sarif') != ''
-        with:
-          sarif_file: snyk-container-backend.sarif
-          category: snyk-container-backend
-
-      - name: Snyk container scan - Frontend
-        uses: snyk/actions/docker@master
-        continue-on-error: true
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
-        with:
-          image: bookshelf-frontend:scan
-          args: --sarif-file-output=snyk-container-frontend.sarif
-
-      - name: Upload frontend container security report
-        uses: github/codeql-action/upload-sarif@v3
-        if: hashFiles('snyk-container-frontend.sarif') != ''
-        with:
-          sarif_file: snyk-container-frontend.sarif
-          category: snyk-container-frontend
+          sarif_file: iac-scan.sarif
+          category: iac-scan
 
   build-and-deploy:
     runs-on: ubuntu-latest
     needs: security-scan
-    if: github.event_name == 'push' && github.ref == 'refs/heads/production'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/demo'
 
     steps:
       - name: Checkout code
@@ -167,8 +128,33 @@ jobs:
       - name: Test backend startup
         run: |
           npm ci
-          timeout 10s npm start || true
+          # Set database env vars to prevent connection to localhost
+          export DB_HOST="mock-host"
+          export DB_USER="test"
+          export DB_NAME="test"
+          export DB_PASSWORD="test"
+          # Use timeout to test basic startup (will fail on DB connection but that's expected)
+          timeout 5s npm start || echo "Backend startup test completed (DB connection expected to fail in CI)"
         working-directory: ./backend
+
+      # ================================
+      # Snyk Monitor for Ongoing Monitoring
+      # ================================
+      - name: Snyk monitor frontend dependencies
+        uses: snyk/actions/node@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
+        with:
+          command: monitor
+          args: --file=frontend/package.json
+
+      - name: Snyk monitor backend dependencies
+        uses: snyk/actions/node@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
+        with:
+          command: monitor
+          args: --file=backend/package.json
 
       # ================================
       # GCP Authentication & Setup
@@ -183,6 +169,9 @@ jobs:
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
 
+      - name: Install GKE auth plugin
+        run: gcloud components install gke-gcloud-auth-plugin
+
       # ================================
       # Docker Build & Push
       # ================================
@@ -195,13 +184,39 @@ jobs:
           REGION=${{ secrets.GCP_REGION }}
           REGISTRY_URL="$REGION-docker.pkg.dev/$PROJECT_ID/bookshelf-mvp"
 
-          # Build and push backend
-          docker build -t $REGISTRY_URL/bookshelf-backend:latest ./backend
+          # Use git commit SHA for unique image tags
+          IMAGE_TAG=${GITHUB_SHA::8}
+
+          # Build and push backend (with platform specification for ARM64 to AMD64 compatibility)
+          docker build --platform linux/amd64 -t $REGISTRY_URL/bookshelf-backend:$IMAGE_TAG -t $REGISTRY_URL/bookshelf-backend:latest ./backend
+          docker push $REGISTRY_URL/bookshelf-backend:$IMAGE_TAG
           docker push $REGISTRY_URL/bookshelf-backend:latest
 
-          # Build and push frontend
-          docker build -t $REGISTRY_URL/bookshelf-frontend:latest ./frontend
+          # Build and push frontend (with platform specification for ARM64 to AMD64 compatibility)
+          docker build --platform linux/amd64 -t $REGISTRY_URL/bookshelf-frontend:$IMAGE_TAG -t $REGISTRY_URL/bookshelf-frontend:latest ./frontend
+          docker push $REGISTRY_URL/bookshelf-frontend:$IMAGE_TAG
           docker push $REGISTRY_URL/bookshelf-frontend:latest
+
+      # ================================
+      # Container Security Scanning
+      # ================================
+      - name: Scan backend container image
+        uses: snyk/actions/docker@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
+        with:
+          image: ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/bookshelf-mvp/bookshelf-backend:latest
+          args: --severity-threshold=high
+
+      - name: Scan frontend container image
+        uses: snyk/actions/docker@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
+        with:
+          image: ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/bookshelf-mvp/bookshelf-frontend:latest
+          args: --severity-threshold=high
 
       # ================================
       # Deploy to GKE
@@ -217,4 +232,110 @@ jobs:
           export USE_REGISTRY=true
           export PROJECT_ID=${{ secrets.GCP_PROJECT_ID }}
           export GCP_REGION=${{ secrets.GCP_REGION }}
-          ./scripts/deploy-app.sh
+
+          # Create database secret if it doesn't exist
+          kubectl get secret db-secret -n bookshelf-mvp || kubectl create secret generic db-secret \
+            --from-literal=password="${{ secrets.DB_PASSWORD }}" \
+            -n bookshelf-mvp
+
+          # Deploy with better error handling
+          echo "Deploying application to Kubernetes..."
+          kubectl apply -f k8s/namespace.yaml
+
+          # Deploy database first and wait for it to be ready
+          echo "Deploying database..."
+          kubectl apply -f k8s/postgres-deployment.yaml
+          kubectl wait --for=condition=available --timeout=300s deployment/postgres-db -n bookshelf-mvp || {
+            echo "Database deployment failed"
+            kubectl logs deployment/postgres-db -n bookshelf-mvp
+            exit 1
+          }
+
+          # Verify database is actually ready to accept connections
+          echo "Verifying database connectivity..."
+          kubectl exec -n bookshelf-mvp deployment/postgres-db -- psql -U bookshelf -d bookshelf -c "SELECT 1;" || {
+            echo "Database connectivity test failed"
+            kubectl logs deployment/postgres-db -n bookshelf-mvp
+            exit 1
+          }
+
+          # Deploy backend first and wait for it to be ready
+          echo "Deploying backend..."
+          kubectl apply -f k8s/backend-deployment.yaml
+          kubectl wait --for=condition=available --timeout=600s deployment/bookshelf-backend -n bookshelf-mvp || {
+            echo "Backend deployment failed, checking logs..."
+            kubectl logs deployment/bookshelf-backend -n bookshelf-mvp
+            kubectl describe deployment/bookshelf-backend -n bookshelf-mvp
+            exit 1
+          }
+
+          # Verify backend API is responding
+          echo "Verifying backend API health..."
+          kubectl run api-test --image=curlimages/curl --rm -i --restart=Never -n bookshelf-mvp -- curl -f http://bookshelf-backend:5000/health || {
+            echo "Backend health check failed"
+            kubectl logs deployment/bookshelf-backend -n bookshelf-mvp
+            exit 1
+          }
+
+          # Test database migrations have run successfully
+          echo "Verifying database schema..."
+          kubectl exec -n bookshelf-mvp deployment/postgres-db -- psql -U bookshelf -d bookshelf -c "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';" || {
+            echo "Database schema verification failed"
+            kubectl logs deployment/bookshelf-backend -n bookshelf-mvp
+            exit 1
+          }
+
+          # Deploy frontend and ingress
+          echo "Deploying frontend and ingress..."
+          kubectl apply -f k8s/frontend-deployment.yaml
+          kubectl apply -f k8s/ingress.yaml
+
+          kubectl wait --for=condition=available --timeout=600s deployment/bookshelf-frontend -n bookshelf-mvp || {
+            echo "Frontend deployment failed, checking logs..."
+            kubectl logs deployment/bookshelf-frontend -n bookshelf-mvp
+            kubectl describe deployment/bookshelf-frontend -n bookshelf-mvp
+            exit 1
+          }
+
+          # Update deployments with new image tags to force pod updates
+          echo "Updating deployments to use new Docker images..."
+          IMAGE_TAG=${GITHUB_SHA::8}
+          kubectl set image deployment/bookshelf-backend backend=$GCP_REGION-docker.pkg.dev/$PROJECT_ID/bookshelf-mvp/bookshelf-backend:$IMAGE_TAG -n bookshelf-mvp
+          kubectl set image deployment/bookshelf-frontend frontend=$GCP_REGION-docker.pkg.dev/$PROJECT_ID/bookshelf-mvp/bookshelf-frontend:$IMAGE_TAG -n bookshelf-mvp
+
+          # Wait for the image updates to complete
+          kubectl rollout status deployment/bookshelf-backend -n bookshelf-mvp --timeout=300s
+          kubectl rollout status deployment/bookshelf-frontend -n bookshelf-mvp --timeout=300s
+
+          echo "Checking final deployment status..."
+          kubectl get pods -n bookshelf-mvp
+          kubectl get deployments -n bookshelf-mvp
+          kubectl get services -n bookshelf-mvp
+          kubectl get ingress -n bookshelf-mvp
+
+          # Final integration test
+          echo "Running integration tests..."
+          sleep 30  # Allow ingress to fully configure
+
+          # Get external IP
+          EXTERNAL_IP=$(kubectl get service ingress-nginx-controller -n ingress-nginx -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "localhost")
+          echo "Testing application at: $EXTERNAL_IP"
+
+          # Test frontend is serving
+          kubectl run integration-test --image=curlimages/curl --rm -i --restart=Never -n bookshelf-mvp -- curl -f -s "http://$EXTERNAL_IP/" > /dev/null || {
+            echo "Frontend integration test failed"
+            kubectl describe ingress bookshelf-ingress -n bookshelf-mvp
+            exit 1
+          }
+
+          # Test API endpoint through ingress
+          kubectl run api-integration-test --image=curlimages/curl --rm -i --restart=Never -n bookshelf-mvp -- curl -f -s "http://$EXTERNAL_IP/api/books/public" > /dev/null || {
+            echo "API integration test failed"
+            kubectl logs deployment/bookshelf-backend -n bookshelf-mvp
+            exit 1
+          }
+
+          echo "✅ All deployment and integration tests passed successfully!"
+          echo "Application is available at: http://$EXTERNAL_IP"
+
+

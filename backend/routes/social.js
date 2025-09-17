@@ -5,19 +5,19 @@ const Social = require('../models/Social');
 const { auth } = require('../middleware/auth');
 const router = express.Router();
 
-router.post('/follow/:userId', auth, (req, res) => {
+router.post('/follow/:userId', auth, async (req, res) => {
   try {
     const followingId = parseInt(req.params.userId);
     const followerId = req.user.id;
 
-    const userToFollow = User.findById(followingId);
+    const userToFollow = await User.findById(followingId);
     if (!userToFollow) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    const follow = Social.follow(followerId, followingId);
+    const follow = await Social.follow(followerId, followingId);
 
-    Social.addActivity(followerId, 'follow', {
+    await Social.addActivity(followerId, 'follow', {
       followedUser: userToFollow.toJSON()
     });
 
@@ -30,12 +30,12 @@ router.post('/follow/:userId', auth, (req, res) => {
   }
 });
 
-router.delete('/follow/:userId', auth, (req, res) => {
+router.delete('/follow/:userId', auth, async (req, res) => {
   try {
     const followingId = parseInt(req.params.userId);
     const followerId = req.user.id;
 
-    Social.unfollow(followerId, followingId);
+    await Social.unfollow(followerId, followingId);
 
     res.json({ message: 'Successfully unfollowed user' });
   } catch (error) {
@@ -46,7 +46,7 @@ router.delete('/follow/:userId', auth, (req, res) => {
 router.get('/users/search', auth, [
   query('q').optional().isLength({ min: 1 }).withMessage('Search query too short'),
   query('limit').optional().isInt({ min: 1, max: 50 }).withMessage('Limit must be between 1 and 50')
-], (req, res) => {
+], async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -54,7 +54,7 @@ router.get('/users/search', auth, [
     }
 
     const { q: query = '', limit = 10 } = req.query;
-    const users = Social.searchUsers(query, req.user.id, parseInt(limit));
+    const users = await Social.searchUsers(query, req.user.id, parseInt(limit));
 
     res.json(users);
   } catch (error) {
@@ -62,18 +62,18 @@ router.get('/users/search', auth, [
   }
 });
 
-router.get('/users/:userId', auth, (req, res) => {
+router.get('/users/:userId', auth, async (req, res) => {
   try {
     const userId = parseInt(req.params.userId);
-    const user = User.findById(userId);
+    const user = await User.findById(userId);
 
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    const networkStats = Social.getNetworkStats(userId);
-    const isFollowing = Social.isFollowing(req.user.id, userId);
-    const followsYou = Social.isFollowing(userId, req.user.id);
+    const networkStats = await Social.getNetworkStats(userId);
+    const isFollowing = await Social.isFollowing(req.user.id, userId);
+    const followsYou = await Social.isFollowing(userId, req.user.id);
 
     res.json({
       ...user.toJSON(),
@@ -86,17 +86,20 @@ router.get('/users/:userId', auth, (req, res) => {
   }
 });
 
-router.get('/following', auth, (req, res) => {
+router.get('/following', auth, async (req, res) => {
   try {
-    const following = Social.getFollowing(req.user.id);
-    const followingUsers = following.map(follow => {
-      const user = User.findById(follow.followingId);
-      return {
+    const following = await Social.getFollowing(req.user.id);
+    const followingUsers = [];
+
+    for (const follow of following) {
+      const user = await User.findById(follow.following_id);
+      const followersCount = await Social.getFollowersCount(user.id);
+      followingUsers.push({
         ...user.toJSON(),
-        followedAt: follow.createdAt,
-        followersCount: Social.getFollowersCount(user.id)
-      };
-    });
+        followedAt: follow.created_at,
+        followersCount
+      });
+    }
 
     res.json(followingUsers);
   } catch (error) {
@@ -104,17 +107,20 @@ router.get('/following', auth, (req, res) => {
   }
 });
 
-router.get('/followers', auth, (req, res) => {
+router.get('/followers', auth, async (req, res) => {
   try {
-    const followers = Social.getFollowers(req.user.id);
-    const followerUsers = followers.map(follow => {
-      const user = User.findById(follow.followerId);
-      return {
+    const followers = await Social.getFollowers(req.user.id);
+    const followerUsers = [];
+
+    for (const follow of followers) {
+      const user = await User.findById(follow.follower_id);
+      const isFollowing = await Social.isFollowing(req.user.id, user.id);
+      followerUsers.push({
         ...user.toJSON(),
-        followedAt: follow.createdAt,
-        isFollowing: Social.isFollowing(req.user.id, user.id)
-      };
-    });
+        followedAt: follow.created_at,
+        isFollowing
+      });
+    }
 
     res.json(followerUsers);
   } catch (error) {
@@ -122,18 +128,19 @@ router.get('/followers', auth, (req, res) => {
   }
 });
 
-router.get('/feed', auth, (req, res) => {
+router.get('/feed', auth, async (req, res) => {
   try {
     const { limit = 20 } = req.query;
-    const activities = Social.getFollowingActivities(req.user.id, parseInt(limit));
+    const activities = await Social.getFollowingActivities(req.user.id, parseInt(limit));
 
-    const enrichedActivities = activities.map(activity => {
-      const user = User.findById(activity.userId);
-      return {
+    const enrichedActivities = [];
+    for (const activity of activities) {
+      const user = await User.findById(activity.user_id);
+      enrichedActivities.push({
         ...activity,
         user: user.toJSON()
-      };
-    });
+      });
+    }
 
     res.json(enrichedActivities);
   } catch (error) {
@@ -141,10 +148,10 @@ router.get('/feed', auth, (req, res) => {
   }
 });
 
-router.get('/stats', auth, (req, res) => {
+router.get('/stats', auth, async (req, res) => {
   try {
-    const stats = Social.getNetworkStats(req.user.id);
-    const recentActivities = Social.getUserActivities(req.user.id, 5);
+    const stats = await Social.getNetworkStats(req.user.id);
+    const recentActivities = await Social.getUserActivities(req.user.id, 5);
 
     res.json({
       ...stats,
