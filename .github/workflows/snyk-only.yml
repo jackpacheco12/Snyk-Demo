@@ -2,7 +2,7 @@ name: Snyk Security Demo
 
 on:
   push:
-    branches: [ demo ]
+    branches: [  ]
   pull_request:
     branches: [ demo ]
 

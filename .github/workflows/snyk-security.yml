@@ -2,14 +2,14 @@ name: Security Scan & Deploy
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main, master, demo ]
   pull_request:
     branches: [ main, master, demo ]
 
 jobs:
   security-scan:
     runs-on: ubuntu-latest
-    if: false  # Security scanning disabled - uncomment to enable when Snyk trial is renewed
+    if: true  # Security scanning enabled for testing
     permissions:
       security-events: write
       actions: read
@@ -107,7 +107,7 @@ jobs:
 
   build-and-deploy:
     runs-on: ubuntu-latest
-    # needs: security-scan  # Commented out while security scanning is disabled
+    needs: security-scan
     if: github.event_name == 'push' && github.ref == 'refs/heads/demo'
 
     steps:
@@ -335,14 +335,8 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
         with:
           image: ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/bookshelf-mvp/bookshelf-backend:latest
-          args: --severity-threshold=high --sarif-file-output=backend-container-image.sarif
+          args: --severity-threshold=high
 
-      - name: Upload backend container scan results
-        uses: github/codeql-action/upload-sarif@v3
-        if: hashFiles('backend-container-image.sarif') != ''
-        with:
-          sarif_file: backend-container-image.sarif
-          category: backend-container-image
 
       - name: Scan frontend container image
         uses: snyk/actions/docker@master
@@ -351,11 +345,5 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
         with:
           image: ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/bookshelf-mvp/bookshelf-frontend:latest
-          args: --severity-threshold=high --sarif-file-output=frontend-container-image.sarif
+          args: --severity-threshold=high
 
-      - name: Upload frontend container scan results
-        uses: github/codeql-action/upload-sarif@v3
-        if: hashFiles('frontend-container-image.sarif') != ''
-        with:
-          sarif_file: frontend-container-image.sarif
-          category: frontend-container-image
