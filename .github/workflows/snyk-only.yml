@@ -24,6 +24,50 @@ jobs:
           node-version: '16'
 
       # ================================
+      # Frontend Dependency Scan
+      # ================================
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: ./frontend
+
+      - name: Snyk frontend vulnerability scan
+        uses: snyk/actions/node@master
+        continue-on-error: false
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
+        with:
+          args: --file=frontend/package.json --severity-threshold=critical --sarif-file-output=frontend-deps.sarif
+
+      - name: Upload frontend security report
+        uses: github/codeql-action/upload-sarif@v3
+        if: hashFiles('frontend-deps.sarif') != ''
+        with:
+          sarif_file: frontend-deps.sarif
+          category: frontend-deps
+
+      # ================================
+      # Backend Dependency Scan
+      # ================================
+      - name: Install backend dependencies
+        run: npm ci
+        working-directory: ./backend
+
+      - name: Snyk backend vulnerability scan
+        uses: snyk/actions/node@master
+        continue-on-error: false
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
+        with:
+          args: --file=backend/package.json --severity-threshold=critical --sarif-file-output=backend-deps.sarif
+
+      - name: Upload backend security report
+        uses: github/codeql-action/upload-sarif@v3
+        if: hashFiles('backend-deps.sarif') != ''
+        with:
+          sarif_file: backend-deps.sarif
+          category: backend-deps
+
+      # ================================
       # Code Quality Scan
       # ================================
       - name: Snyk code quality scan

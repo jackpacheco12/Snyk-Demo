@@ -2,9 +2,9 @@ name: Security Scan & Deploy
 
 on:
   push:
-    branches: [ main, master, production ]
+    branches: [ main, master, demo ]
   pull_request:
-    branches: [ main, master, production ]
+    branches: [ main, master, demo ]
 
 jobs:
   security-scan:
@@ -108,7 +108,7 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     # needs: security-scan  # Commented out while security scanning is disabled
-    if: github.event_name == 'push' && github.ref == 'refs/heads/production'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/demo'
 
     steps:
       - name: Checkout code
