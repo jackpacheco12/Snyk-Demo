@@ -179,6 +179,27 @@ jobs:
           docker push $REGISTRY_URL/bookshelf-frontend:latest
 
       # ================================
+      # Container Security Scanning
+      # ================================
+      - name: Scan backend container image
+        uses: snyk/actions/docker@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
+        with:
+          image: ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/bookshelf-mvp/bookshelf-backend:latest
+          args: --severity-threshold=high
+
+      - name: Scan frontend container image
+        uses: snyk/actions/docker@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
+        with:
+          image: ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/bookshelf-mvp/bookshelf-frontend:latest
+          args: --severity-threshold=high
+
+      # ================================
       # Deploy to GKE
       # ================================
       - name: Deploy to GKE
@@ -298,52 +319,4 @@ jobs:
           echo "✅ All deployment and integration tests passed successfully!"
           echo "Application is available at: http://$EXTERNAL_IP"
 
-  container-security-scan:
-    runs-on: ubuntu-latest
-    needs: build-and-deploy
-    if: false  # Container scanning disabled - enable when ready to test
-    permissions:
-      contents: read
-      security-events: write
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
-
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
-        with:
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
-
-      - name: Configure Docker for Artifact Registry
-        run: gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev
-
-      - name: Pull images for scanning
-        run: |
-          docker pull ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/bookshelf-mvp/bookshelf-backend:latest
-          docker pull ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/bookshelf-mvp/bookshelf-frontend:latest
-
-      - name: Scan backend container image
-        uses: snyk/actions/docker@master
-        continue-on-error: true
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
-        with:
-          image: ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/bookshelf-mvp/bookshelf-backend:latest
-          args: --severity-threshold=high
-
-
-      - name: Scan frontend container image
-        uses: snyk/actions/docker@master
-        continue-on-error: true
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_KEY }}
-        with:
-          image: ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/bookshelf-mvp/bookshelf-frontend:latest
-          args: --severity-threshold=high
 
